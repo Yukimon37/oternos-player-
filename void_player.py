@@ -655,21 +655,12 @@ class AudioEngine:
     def _get_dur(self, path):
         if MUTAGEN_AVAILABLE:
             try:
-                from mutagen.mp3  import MP3  as _MP3
-                from mutagen.flac import FLAC as _FLAC
-                from mutagen      import File as _MFile
+                from mutagen import File as _MFile
                 f = _MFile(path)
-                if f and f.info:
-                    return f.info.length
+                if f and f.info and hasattr(f.info, "length"):
+                    return float(f.info.length)
             except Exception:
                 pass
-        # Fallback: load sound and check length (only for short files)
-        try:
-            if self._pygame:
-                s = self._pygame.mixer.Sound(path)
-                return s.get_length()
-        except Exception:
-            pass
         return 0.0
 
     # ── public API ────────────────────────
@@ -690,11 +681,12 @@ class AudioEngine:
             self._open         = True
             return True
         except Exception as _e:
+            self._last_error = str(_e)
             return False
 
     def play(self, start_ms=0):
         if not self._pygame or not self._open:
-            return
+            return False
         try:
             self._seek_offset = start_ms / 1000.0
             self._pygame.mixer.music.play(start=self._seek_offset)
@@ -703,8 +695,12 @@ class AudioEngine:
             self._pos_cache  = self._seek_offset
             self.is_playing  = True
             self.is_paused   = False
-        except Exception:
-            pass
+            return True
+        except Exception as e:
+            self._last_error = str(e)
+            self.is_playing  = False
+            self._open       = False
+            return False
 
     def pause(self):
         if not self._pygame or not self.is_playing:
@@ -721,8 +717,9 @@ class AudioEngine:
         if not self._pygame or not self.is_paused:
             return
         try:
+            paused_pos = self._pos_cache
             self._pygame.mixer.music.unpause()
-            self._play_start = time.time() - (self._pos_cache - self._seek_offset)
+            self._seek_offset = paused_pos - (self._pygame.mixer.music.get_pos() / 1000.0)
             self.is_playing  = True
             self.is_paused   = False
         except Exception:
@@ -764,9 +761,9 @@ class AudioEngine:
             return self._pos_cache
         if self.is_playing:
             try:
-                # pygame music.get_pos() resets on seek, so use wall clock
-                elapsed = time.time() - self._play_start
-                self._pos_cache = self._seek_offset + elapsed
+                ms = self._pygame.mixer.music.get_pos()
+                if ms >= 0:
+                    self._pos_cache = self._seek_offset + ms / 1000.0
             except Exception:
                 pass
         return self._pos_cache
@@ -782,32 +779,43 @@ class AudioEngine:
     def is_done(self):
         if not self._pygame or not self.is_playing:
             return False
+        if time.time() - self._play_start < 0.5:
+            return False
         try:
-            if not self._pygame.mixer.music.get_busy():
-                return True
+            return not self._pygame.mixer.music.get_busy()
         except Exception:
-            pass
-        return False
+            return False
 
     def get_metadata(self, path):
         m = {"title": Path(path).stem, "artist": "Unknown", "album": "Unknown"}
-        if MUTAGEN_AVAILABLE:
-            try:
-                from mutagen.id3 import ID3, TIT2, TPE1, TALB
-                tags = ID3(path)
-                if TIT2 in tags: m["title"]  = str(tags[TIT2])
-                if TPE1 in tags: m["artist"] = str(tags[TPE1])
-                if TALB in tags: m["album"]  = str(tags[TALB])
-            except Exception:
-                try:
-                    from mutagen import File as _MF
-                    f = _MF(path)
-                    if f:
-                        m["title"]  = str(f.get("title",  [Path(path).stem])[0])
-                        m["artist"] = str(f.get("artist", ["Unknown"])[0])
-                        m["album"]  = str(f.get("album",  ["Unknown"])[0])
-                except Exception:
-                    pass
+        if not MUTAGEN_AVAILABLE:
+            return m
+        try:
+            from mutagen import File as _MF
+            f = _MF(path)
+            if f is None:
+                return m
+            tags = f.tags or {}
+            def _get(keys, default):
+                for k in keys:
+                    v = tags.get(k)
+                    if v:
+                        return str(v[0]) if isinstance(v, list) else str(v)
+                return default
+            if hasattr(f, "tags") and f.tags and hasattr(f.tags, "getall"):
+                t = f.tags
+                def _id3(k, d):
+                    v = t.get(k)
+                    return str(v) if v else d
+                m["title"]  = _id3("TIT2", m["title"])
+                m["artist"] = _id3("TPE1", m["artist"])
+                m["album"]  = _id3("TALB", m["album"])
+            else:
+                m["title"]  = _get(["title",  "TITLE"],  m["title"])
+                m["artist"] = _get(["artist", "ARTIST", "albumartist"], m["artist"])
+                m["album"]  = _get(["album",  "ALBUM"],  m["album"])
+        except Exception:
+            pass
         return m
 
     # kept for API compat with old MCI code
@@ -1752,8 +1760,8 @@ class VoidPlayer:
         self._apply_settings()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # Discord RPC — try connecting in background
-        threading.Thread(target=self._discord_connect, daemon=True).start()
+        # Discord RPC — delay so it doesn't slow startup
+        self.root.after(3000, lambda: threading.Thread(target=self._discord_connect, daemon=True).start())
 
         # Start folder watchers for any saved watch dirs
         for d in self.settings.get("watch_dirs", []):
@@ -1772,7 +1780,7 @@ class VoidPlayer:
         except Exception:
             self._hotkeys = None        # Auto-start Spotify poll if we already have a valid token
         if self.sp_auth.is_authenticated():
-            self.root.after(1000, lambda: self._sp_poll_np() if self._sp_np_job is None else None)
+            self.root.after(4000, lambda: self._sp_poll_np() if self._sp_np_job is None else None)
 
         # Global keyboard shortcuts
         self.root.bind("<Control-p>", lambda e: self._open_palette())
@@ -2733,16 +2741,20 @@ class VoidPlayer:
         self.content.pack(fill="both", expand=True)
         self._build_lib_view()
         self._build_queue_view()
-        self._build_visualizer_view()
-        self._build_lyrics_view()
-        self._build_history_view()
-        self._build_album_view()
-        self._build_spotify_view()
-        self._build_soundcloud_view()
-        self._build_youtube_view()
-        self._build_claude_view()
-        self._build_help_view()
         self._switch_view("library")
+        self.root.after(100, self._build_deferred_views)
+
+    def _build_deferred_views(self):
+        """Build non-essential views after UI is visible to speed up startup."""
+        self._build_visualizer_view()
+        self.root.after(50,  lambda: self._build_lyrics_view())
+        self.root.after(100, lambda: self._build_history_view())
+        self.root.after(150, lambda: self._build_album_view())
+        self.root.after(200, lambda: self._build_spotify_view())
+        self.root.after(250, lambda: self._build_soundcloud_view())
+        self.root.after(300, lambda: self._build_youtube_view())
+        self.root.after(350, lambda: self._build_claude_view())
+        self.root.after(400, lambda: self._build_help_view())
 
     def _build_lib_view(self):
         self.lib_frame = tk.Frame(self.content, bg=C["bg"])
@@ -4558,6 +4570,7 @@ class VoidPlayer:
                     self.now_title.config(text=title[:50])
                     self.now_artist.config(text=artist)
                     self.now_album.config(text="SoundCloud")
+                    self.engine.duration = float(dur_s)
                     self.lbl_cur.config(text="0:00")
                     self.lbl_tot.config(text=f"{dur_s//60}:{dur_s%60:02d}")
                     self._draw_prog(0)
@@ -5076,22 +5089,14 @@ class VoidPlayer:
             def _play(f=out_file, d=dur_s):
                 self._yt_load_stop()
                 self._stop_all_sources()
-                # Claim the source slot immediately so the Spotify poll can't
-                # sneak in during the load delay and hijack the player bar.
                 self._active_source = "youtube"
                 self._sp_mode = False
                 self._set_source_badge("youtube")
-                import time as _t; _t.sleep(0.2)
                 ok = self.engine.load(f)
                 if ok:
-                    # Ensure time format is set so MCI duration query works
-                    self.engine._ensure_time_fmt()
-                    import time as _t2; _t2.sleep(0.05)
-                    # Get best duration: prefer yt-dlp value, fallback to MCI/mutagen
                     if d > 0:
                         self.engine.duration = float(d)
                     else:
-                        # Use duration from engine (pygame already calculated it)
                         d = self.engine.duration
                     self.engine.set_volume(self.engine.volume)
                     self.engine.play()
@@ -5714,17 +5719,12 @@ class VoidPlayer:
 
         def _do_switch():
             self.view = view
-            self.lib_frame.pack_forget()
-            self.queue_frame.pack_forget()
-            self.viz_frame.pack_forget()
-            self.lyrics_frame.pack_forget()
-            self.history_frame.pack_forget()
-            self.album_frame.pack_forget()
-            self.sp_frame.pack_forget()
-            self.sc_frame.pack_forget()
-            self.yt_frame.pack_forget()
-            self.claude_frame.pack_forget()
-            if hasattr(self, "help_frame"): self.help_frame.pack_forget()
+            for _attr in ("lib_frame","queue_frame","viz_frame","lyrics_frame",
+                          "history_frame","album_frame","sp_frame","sc_frame",
+                          "yt_frame","claude_frame","help_frame"):
+                if hasattr(self, _attr):
+                    try: getattr(self, _attr).pack_forget()
+                    except: pass
             if view in ("library", "playlist"):
                 self.lib_frame.pack(fill="both", expand=True)
                 if view == "library":
@@ -6131,8 +6131,12 @@ class VoidPlayer:
                 m = self.engine.get_metadata(p)
                 m["path"] = p
                 if MUTAGEN_AVAILABLE:
-                    try:    m["duration"] = MP3(p).info.length
-                    except: m["duration"] = 0.0
+                    try:
+                        from mutagen import File as _MF2
+                        _f = _MF2(p)
+                        m["duration"] = _f.info.length if _f and _f.info else 0.0
+                    except Exception:
+                        m["duration"] = 0.0
                 else:
                     m["duration"] = 0.0
                 self.library.append(m)
@@ -6242,8 +6246,9 @@ class VoidPlayer:
         self._stop_all_sources()
         self._active_source = "library"
         self._set_source_badge("library")
-        if self.engine.load(play_path):
-            self.engine.play()
+        loaded = self.engine.load(play_path)
+        played = loaded and self.engine.play()
+        if loaded and played:
             self.wavevis.set_active(True)
             self._set_logo_playing(True)
             self.btn_play.config(text="⏸")
@@ -6317,9 +6322,18 @@ class VoidPlayer:
             self._set_source_badge("none")
             self._set_status("LOAD FAILED")
             fname = Path(play_path).name
-            self.now_title.config(text="\u26a0  LOAD FAILED")
+            self.now_title.config(text="⚠  LOAD FAILED")
             self.now_artist.config(text=fname[:50])
             self.now_album.config(text="")
+            err = getattr(self.engine, "_last_error", "")
+            if not getattr(self.engine, "_pygame", None):
+                messagebox.showerror("OTERNOS // AUDIO ERROR",
+                    "pygame is not available.\n\nRun: pip install pygame\nThen rebuild the exe.")
+            else:
+                messagebox.showerror("OTERNOS // PLAYBACK ERROR",
+                    f"Could not play:\n{fname}\n\n"
+                    + (f"Error: {err}\n\n" if err else "")
+                    + "Supported formats: MP3, WAV, OGG, FLAC")
         self._refresh_tracks()
         if self.view == "queue":
             self._refresh_queue()
@@ -6367,7 +6381,14 @@ class VoidPlayer:
             threading.Thread(target=self.sp_api.next_track, daemon=True).start()
             return
         if self._active_source in ("youtube", "soundcloud"):
-            return  # no next/prev for streaming sources
+            self._stop_all_sources()
+            self._active_source = "none"
+            self._set_source_badge("none")
+            if not self.queue:
+                return
+            self.queue_pos = (self.queue_pos + 1) % len(self.queue)
+            self._play_item(self.queue_pos)
+            return
         if not self.queue:
             return
         if getattr(self,"_smart_skip_on",False):
@@ -6388,7 +6409,14 @@ class VoidPlayer:
             threading.Thread(target=self.sp_api.prev_track, daemon=True).start()
             return
         if self._active_source in ("youtube", "soundcloud"):
-            return  # no prev for streaming sources
+            self._stop_all_sources()
+            self._active_source = "none"
+            self._set_source_badge("none")
+            if not self.queue:
+                return
+            self.queue_pos = (self.queue_pos - 1) % len(self.queue)
+            self._play_item(self.queue_pos)
+            return
         if not self.queue:
             return
         if self.engine.get_position() > 5:
@@ -11462,7 +11490,9 @@ class TronBoot:
         items = self._line_items
         login_item    = items[-2] if len(items) >= 2 else None
         password_item = items[-1] if len(items) >= 1 else None
-        login_text    = "  LOGIN    :  IKARI"
+        import os as _os
+        _uname = _os.environ.get("USERNAME", _os.environ.get("USER", "USER")).upper()
+        login_text    = f"  LOGIN    :  {_uname}"
         password_text = "  PASSWORD :  ••••••••••"
         if login_item:
             self._retype(login_item, "  LOGIN    :  ", login_text, 0)
