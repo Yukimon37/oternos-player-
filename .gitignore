@@ -3,3 +3,4 @@ ffprobe.exe
 RobloxTranslator.exe 
 void_player.exe 
 *.exe 
+"build/" 
