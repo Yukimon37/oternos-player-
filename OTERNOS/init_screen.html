@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OTERNOS // INIT</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --white:  #ffffff;
+    --white2: #cccccc;
+    --gray:   #888888;
+    --dark:   #1a1a1a;
+    --bg:     #000000;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Courier New', Courier, monospace;
+    overflow: hidden;
+    cursor: none;
+    user-select: none;
+  }
+
+  /* ── Scan-line overlay ── */
+  #scanlines {
+    position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.18) 2px,
+      rgba(0,0,0,0.18) 4px
+    );
+  }
+
+  /* ── Noise grain ── */
+  #grain {
+    position: fixed; inset: 0; z-index: 2; pointer-events: none;
+    opacity: 0.035;
+    animation: grainShift 0.12s steps(1) infinite;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 150px 150px;
+  }
+  @keyframes grainShift {
+    0%   { background-position:   0%   0%; }
+    20%  { background-position:  42%  17%; }
+    40%  { background-position:  80%  55%; }
+    60%  { background-position:  23%  88%; }
+    80%  { background-position:  67%  33%; }
+    100% { background-position:  11%  60%; }
+  }
+
+  /* ── Corner brackets ── */
+  .corner {
+    position: fixed;
+    width: 22px; height: 22px;
+    z-index: 10;
+    opacity: 0;
+    animation: cornerIn 0.4s ease forwards;
+  }
+  .corner svg { width: 100%; height: 100%; }
+  .corner.tl { top: 18px; left: 18px; }
+  .corner.tr { top: 18px; right: 18px; transform: scaleX(-1); }
+  .corner.bl { bottom: 18px; left: 18px; transform: scaleY(-1); }
+  .corner.br { bottom: 18px; right: 18px; transform: scale(-1,-1); }
+  @keyframes cornerIn {
+    from { opacity: 0; transform: scale(0.6); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .corner.tr { animation-delay: 0.05s; }
+  .corner.bl { animation-delay: 0.08s; }
+  .corner.br { animation-delay: 0.12s; }
+
+  /* ── Main container ── */
+  #main {
+    position: fixed; inset: 0; z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    opacity: 0;
+    animation: fadeIn 0.3s ease 0.15s forwards;
+  }
+  @keyframes fadeIn {
+    to { opacity: 1; }
+  }
+
+  /* ── Top bar ── */
+  #topbar {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--white);
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: barExpand 0.5s cubic-bezier(0.25,1,0.5,1) 0.1s forwards;
+    z-index: 20;
+  }
+  #bottombar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: #333;
+    transform: scaleX(0);
+    transform-origin: right;
+    animation: barExpand 0.5s cubic-bezier(0.25,1,0.5,1) 0.2s forwards;
+    z-index: 20;
+  }
+  @keyframes barExpand { to { transform: scaleX(1); } }
+
+  /* ── Status label, top right ── */
+  #status-tag {
+    position: fixed; top: 10px; right: 18px;
+    font-size: 9px; color: var(--gray); letter-spacing: 2px;
+    z-index: 20;
+    opacity: 0;
+    animation: fadeIn 0.3s ease 0.5s forwards;
+  }
+
+  /* ── Version, bottom left ── */
+  #version-tag {
+    position: fixed; bottom: 8px; left: 18px;
+    font-size: 8px; color: #444; letter-spacing: 2px;
+    z-index: 20;
+    opacity: 0;
+    animation: fadeIn 0.3s ease 0.5s forwards;
+  }
+
+  /* ── Logo ── */
+  #logo {
+    font-size: clamp(22px, 4vw, 38px);
+    font-weight: bold;
+    letter-spacing: 10px;
+    color: var(--white);
+    text-align: center;
+    margin-bottom: 6px;
+    opacity: 0;
+    transform: translateY(8px);
+    animation: logoIn 0.4s cubic-bezier(0.25,1,0.5,1) 0.25s forwards;
+  }
+  @keyframes logoIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Subtitle ── */
+  #sub {
+    font-size: 10px;
+    letter-spacing: 5px;
+    color: var(--gray);
+    text-align: center;
+    margin-bottom: 40px;
+    opacity: 0;
+    animation: fadeIn 0.3s ease 0.5s forwards;
+  }
+
+  /* ── Progress ring ── */
+  #ring-wrap {
+    position: relative;
+    width: 90px; height: 90px;
+    margin-bottom: 36px;
+    opacity: 0;
+    animation: fadeIn 0.3s ease 0.4s forwards;
+  }
+  #ring-bg, #ring-fg {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+  }
+  #ring-bg {
+    border: 1px solid #222;
+  }
+  #ring-fg {
+    border: 2px solid transparent;
+    border-top-color: var(--white);
+    border-right-color: var(--white);
+    animation: spin 0.9s linear infinite;
+  }
+  #ring-dot {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--white);
+    animation: pulse 0.9s ease-in-out infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+    50%       { opacity: 0.4; transform: translate(-50%,-50%) scale(0.6); }
+  }
+
+  /* ── Status lines ── */
+  #status-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: min(340px, 86vw);
+    opacity: 0;
+    animation: fadeIn 0.3s ease 0.55s forwards;
+  }
+  .sl {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: #555;
+    padding: 0 2px;
+    opacity: 0;
+  }
+  .sl .sl-label { color: #999; }
+  .sl .sl-val   { color: var(--white); font-size: 8px; letter-spacing: 2px; }
+  .sl .sl-bar   {
+    height: 1px;
+    background: var(--white);
+    flex: 1;
+    margin: 0 10px;
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+
+  /* ── ONLINE flash ── */
+  #online {
+    font-size: clamp(16px, 2.5vw, 24px);
+    letter-spacing: 8px;
+    color: var(--white);
+    margin-top: 42px;
+    opacity: 0;
+    text-align: center;
+  }
+
+  /* ── Screen wipe ── */
+  #wipe {
+    position: fixed; inset: 0; z-index: 100;
+    background: var(--white);
+    transform: scaleY(0);
+    transform-origin: top;
+    pointer-events: none;
+  }
+  #wipe.active {
+    animation: wipeDown 0.45s cubic-bezier(0.76,0,0.24,1) forwards;
+  }
+  @keyframes wipeDown {
+    0%   { transform: scaleY(0); transform-origin: top; }
+    50%  { transform: scaleY(1); transform-origin: top; }
+    51%  { transform-origin: bottom; }
+    100% { transform: scaleY(0); transform-origin: bottom; }
+  }
+</style>
+</head>
+<body>
+
+<div id="topbar"></div>
+<div id="bottombar"></div>
+<div id="scanlines"></div>
+<div id="grain"></div>
+<div id="status-tag">OTERNOS // INIT v1.1</div>
+<div id="version-tag">SYS.ONLINE · __TRACK_COUNT__ TRK</div>
+
+<!-- Corner brackets -->
+<div class="corner tl"><svg viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="22,2 2,2 2,22" stroke="#fff" stroke-width="1.5"/></svg></div>
+<div class="corner tr"><svg viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="22,2 2,2 2,22" stroke="#fff" stroke-width="1.5"/></svg></div>
+<div class="corner bl"><svg viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="22,2 2,2 2,22" stroke="#fff" stroke-width="1.5"/></svg></div>
+<div class="corner br"><svg viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="22,2 2,2 2,22" stroke="#fff" stroke-width="1.5"/></svg></div>
+
+<div id="main">
+  <div id="logo">OTERNOS</div>
+  <div id="sub">// SYSTEM INITIALIZATION</div>
+
+  <div id="ring-wrap">
+    <div id="ring-bg"></div>
+    <div id="ring-fg"></div>
+    <div id="ring-dot"></div>
+  </div>
+
+  <div id="status-lines">
+    <div class="sl" id="sl0"><span class="sl-label">AUDIO ENGINE</span><span class="sl-bar"></span><span class="sl-val">ONLINE</span></div>
+    <div class="sl" id="sl1"><span class="sl-label">PATCH MODULES</span><span class="sl-bar"></span><span class="sl-val">LOADED</span></div>
+    <div class="sl" id="sl2"><span class="sl-label">LIBRARY INDEX</span><span class="sl-bar"></span><span class="sl-val">READY</span></div>
+    <div class="sl" id="sl3"><span class="sl-label">STREAM BRIDGE</span><span class="sl-bar"></span><span class="sl-val">ACTIVE</span></div>
+    <div class="sl" id="sl4"><span class="sl-label">INTERFACE</span><span class="sl-bar"></span><span class="sl-val">NOMINAL</span></div>
+  </div>
+
+  <div id="online">// ALL SYSTEMS NOMINAL</div>
+</div>
+
+<div id="wipe"></div>
+
+<script>
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+// ── CYBERNETIC AUDIO ENGINE (same clean design as boot screen) ────────────────
+let _AC = null;
+function ac() { if (!_AC) _AC = new (window.AudioContext || window.webkitAudioContext)(); return _AC; }
+
+function getMaster() {
+  const a = ac(); if (a._master) return a._master;
+  const c = a.createDynamicsCompressor();
+  c.threshold.value = -16; c.knee.value = 6; c.ratio.value = 3;
+  c.attack.value = 0.002; c.release.value = 0.15;
+  c.connect(a.destination); a._master = c; return c;
+}
+
+function tone(freq, type, atk, sus, dec, vol, pan) {
+  try {
+    const a = ac(), n = a.currentTime, m = getMaster();
+    const o = a.createOscillator(), e = a.createGain(), p = a.createStereoPanner();
+    o.type = type || 'sine';
+    o.frequency.setValueAtTime(freq, n);
+    e.gain.setValueAtTime(0, n);
+    e.gain.linearRampToValueAtTime(vol, n + atk);
+    e.gain.setValueAtTime(vol, n + atk + sus);
+    e.gain.exponentialRampToValueAtTime(0.0001, n + atk + sus + dec);
+    p.pan.value = pan || 0;
+    o.connect(e); e.connect(p); p.connect(m);
+    o.start(n); o.stop(n + atk + sus + dec + 0.02);
+  } catch(e_) {}
+}
+
+// ── PER-CHARACTER BLIP ────────────────────────────────────────────────────────
+// Map each character to a pitch on a chromatic scale.
+// Result: typing sounds like a precise, musical sci-fi terminal.
+// A3=220Hz chromatic scale — 12 notes per octave
+const CHROMA = [
+  220.00, 246.94, 261.63, 293.66, 329.63, 349.23,
+  392.00, 440.00, 493.88, 523.25, 587.33, 659.25
+];
+
+function charBlip(ch) {
+  if (ch === ' ' || ch === '') return;   // space = silence
+  const code = ch.charCodeAt(0);
+  // Pick note from chromatic set based on char code
+  const note = CHROMA[code % CHROMA.length];
+  // Uppercase / capital letters: play in upper octave (×2)
+  // Digits: middle octave (×1.5)
+  // Lowercase: base octave
+  // Symbols (·, /, ─): slightly lower (×0.75) and quieter
+  let freq, vol, type;
+  if (code >= 65 && code <= 90) {       // A-Z uppercase
+    freq = note * 2; vol = 0.030; type = 'sine';
+  } else if (code >= 97 && code <= 122) { // a-z lowercase
+    freq = note * 1; vol = 0.026; type = 'sine';
+  } else if (code >= 48 && code <= 57) { // 0-9 digits
+    freq = note * 1.5; vol = 0.028; type = 'triangle';
+  } else {                               // symbols, punctuation
+    freq = note * 0.75; vol = 0.018; type = 'sine';
+  }
+  // Stereo position drifts slightly with character index (makes it feel spatial)
+  const pan = ((code % 7) - 3) * 0.12;
+  // Very short: attack 3ms, sustain 8ms, decay 22ms = total ~33ms
+  tone(freq, type, 0.003, 0.008, 0.022, vol, pan);
+}
+
+// ── SEQUENCE SOUNDS ───────────────────────────────────────────────────────────
+// Per-line confirm tone: ascending note from D minor pentatonic
+const LINE_NOTES = [293.66, 349.23, 392.00, 440.00, 523.25];
+function sndLine(idx) {
+  const f = LINE_NOTES[idx % LINE_NOTES.length];
+  tone(f,   'sine', 0.005, 0.02, 0.18, 0.045, -0.2);
+  tone(f*2, 'sine', 0.005, 0.01, 0.12, 0.018,  0.2);
+}
+
+// All systems nominal: Dm arpeggio → chord
+function sndNominal() {
+  const arp = [293.66, 349.23, 440.00, 587.33, 698.46, 880.00];
+  arp.forEach((f, i) => setTimeout(() => tone(f, 'sine', 0.005, 0.04, 0.22, 0.045, 0), i * 70));
+  setTimeout(() => {
+    tone(587.33, 'sine', 0.02, 0.5, 0.5, 0.045, -0.25);
+    tone(698.46, 'sine', 0.02, 0.5, 0.5, 0.038,  0   );
+    tone(880.00, 'sine', 0.02, 0.5, 0.5, 0.032,  0.25);
+    tone(146.83, 'sine', 0.03, 0.6, 0.6, 0.036,  0   );
+  }, arp.length * 70 + 20);
+}
+
+// Wipe: brief ping then descending sweep
+function sndOut() {
+  tone(1760, 'sine', 0.003, 0.005, 0.055, 0.038, 0);
+  setTimeout(() => {
+    // Sweep down using a series of quick tones
+    [880, 660, 440, 293.66, 146.83].forEach((f, i) =>
+      setTimeout(() => tone(f, 'sine', 0.004, 0.01, 0.06, 0.028 - i*0.004, 0), i * 55)
+    );
+  }, 30);
+}
+
+// ── TYPING ENGINE ─────────────────────────────────────────────────────────────
+// Types text into an element character by character, playing a blip each time.
+// charDelay: ms between each character
+async function typeInto(el, text, charDelay = 38) {
+  el.textContent = '';
+  for (const ch of text) {
+    el.textContent += ch;
+    charBlip(ch);
+    await delay(charDelay);
+  }
+}
+
+// ── MAIN SEQUENCE ─────────────────────────────────────────────────────────────
+async function run() {
+  await delay(200);
+
+  const lines = document.querySelectorAll('.sl');
+  for (let i = 0; i < lines.length; i++) {
+    await delay(160);
+    const sl = lines[i];
+
+    // Fade the row in
+    sl.style.transition = 'opacity 0.18s';
+    sl.style.opacity = '1';
+
+    // Get text from label (store in data-label attribute, or read existing textContent)
+    const labelEl = sl.querySelector('.sl-label');
+    const valEl   = sl.querySelector('.sl-val');
+    const barEl   = sl.querySelector('.sl-bar');
+
+    // Save and clear label text so we can type it in
+    const labelText = labelEl.dataset.label || labelEl.textContent;
+    labelEl.dataset.label = labelText;
+    labelEl.textContent   = '';
+
+    const valText = valEl.dataset.val || valEl.textContent;
+    valEl.dataset.val   = valText;
+    valEl.textContent   = '';
+
+    // Type the label with per-char blips (fast: 34ms per char)
+    await typeInto(labelEl, labelText, 34);
+
+    // Bar expands while value types
+    await delay(40);
+    barEl.style.transition = 'transform 0.35s cubic-bezier(0.25,1,0.5,1)';
+    barEl.style.transform  = 'scaleX(1)';
+
+    // Type the value
+    await typeInto(valEl, valText, 55);
+
+    // Confirmation blip after value completes
+    sndLine(i);
+    await delay(60);
+  }
+
+  // "ALL SYSTEMS NOMINAL" — type it in too
+  await delay(280);
+  const online = document.getElementById('online');
+  online.style.transition = 'opacity 0.3s';
+  online.style.opacity    = '1';
+  const onlineText = online.dataset.text || online.textContent;
+  online.dataset.text   = onlineText;
+  online.textContent    = '';
+  // Type NOMINAL text slightly faster — feels urgent/confirmed
+  await typeInto(online, onlineText, 28);
+  online.style.letterSpacing = '12px';
+  sndNominal();
+
+  await delay(700);
+
+  // Lock the spinner — full ring, dot solid
+  const fg  = document.getElementById('ring-fg');
+  const dot = document.getElementById('ring-dot');
+  fg.style.animation = 'none';
+  ['Top','Right','Bottom','Left'].forEach(s => fg.style['border' + s + 'Color'] = '#fff');
+  dot.style.animation  = 'none';
+  dot.style.opacity    = '1';
+  dot.style.transform  = 'translate(-50%,-50%) scale(1)';
+
+  await delay(500);
+
+  sndOut();
+  document.getElementById('wipe').classList.add('active');
+  await delay(500);
+
+  document.title = 'BOOT_DONE';
+  if (window.pywebview && window.pywebview.api) {
+    window.pywebview.api.on_boot_done();
+  }
+}
+
+run();
+</script>
+
+</body>
+</html>
+

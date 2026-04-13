@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OTERNOS // SECURE BOOT</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:'Courier New',Courier,monospace;color:#fff;cursor:crosshair;user-select:none;}
+#c-flow,#c-torus,#c-nodes,#c-scope,#c-glitch,#c-ripple{position:fixed;inset:0;pointer-events:none;}
+#c-flow{z-index:1;}#c-torus{z-index:2;}#c-nodes{z-index:3;}#c-scope{z-index:4;}#c-glitch{z-index:6;}#c-ripple{z-index:7;}
+#scanlines{position:fixed;inset:0;z-index:5;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.22) 2px,rgba(0,0,0,.22) 4px);}
+#beam{position:fixed;left:0;right:0;z-index:8;height:2px;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,.05) 40%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 60%,transparent);animation:beamDown 6s linear infinite;}
+@keyframes beamDown{from{top:-2px}to{top:100vh}}
+#vignette{position:fixed;inset:0;z-index:9;pointer-events:none;background:radial-gradient(ellipse 75% 65% at 50% 50%,transparent 38%,rgba(0,0,0,.96) 100%);}
+#crs{position:fixed;z-index:300;pointer-events:none;width:24px;height:24px;transform:translate(-50%,-50%);}
+#crs::before,#crs::after{content:'';position:absolute;background:rgba(255,255,255,.45);}
+#crs::before{width:1px;height:100%;left:50%;}#crs::after{width:100%;height:1px;top:50%;}
+#topbar{position:fixed;top:0;left:0;right:0;height:28px;z-index:60;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #141414;background:rgba(0,0,0,.97);}
+.tb-l{display:flex;align-items:center;gap:10px;}
+#tb-logo{font-size:9px;letter-spacing:.28em;color:#fff;}
+.tb-sep{width:1px;height:12px;background:#1a1a1a;}
+.tb-tag{font-size:7.5px;color:#2a2a2a;letter-spacing:.14em;}
+.tb-dot{width:4px;height:4px;border-radius:50%;background:#fff;animation:blink 1.6s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.08}}
+#tb-time{font-size:8px;color:#333;font-variant-numeric:tabular-nums;}
+#tb-xy{font-size:7px;color:#1e1e1e;letter-spacing:.08em;font-variant-numeric:tabular-nums;}
+#bottombar{position:fixed;bottom:0;left:0;right:0;height:22px;z-index:60;display:flex;align-items:center;padding:0 16px;gap:12px;border-top:1px solid #141414;background:rgba(0,0,0,.97);}
+#bticker{flex:1;overflow:hidden;white-space:nowrap;font-size:7px;color:#1c1c1c;}
+#bticker-inner{display:inline-block;animation:ticker 38s linear infinite;}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+#bver{font-size:7px;color:#181818;letter-spacing:.1em;white-space:nowrap;}
+.hline{position:fixed;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#111 20%,#111 80%,transparent);z-index:10;pointer-events:none;}
+.hline.top{top:28px;}.hline.bot{bottom:22px;}
+.corner{position:fixed;width:26px;height:26px;z-index:20;}
+.corner.tl{top:36px;left:10px;}.corner.tr{top:36px;right:10px;transform:scaleX(-1);}
+.corner.bl{bottom:30px;left:10px;transform:scaleY(-1);}.corner.br{bottom:30px;right:10px;transform:scale(-1,-1);}
+.corner svg{width:100%;height:100%;}.corner path{stroke:#1e1e1e;stroke-width:1.2;fill:none;}
+.crd{position:fixed;z-index:20;font-size:6.5px;color:#1c1c1c;letter-spacing:.12em;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.crd.tl{top:38px;left:42px;}.crd.tr{top:38px;right:42px;text-align:right;}
+.crd.bl{bottom:32px;left:42px;}.crd.br{bottom:32px;right:42px;text-align:right;}
+.sidepanel{position:fixed;top:54px;z-index:40;width:172px;border:1px solid #0e0e0e;background:rgba(0,0,0,.97);padding:10px 11px;opacity:0;}
+.sidepanel.left{left:14px;transform:translateX(-6px);animation:panelInL .5s ease .5s forwards;}
+.sidepanel.right{right:14px;transform:translateX(6px);animation:panelInR .5s ease .65s forwards;}
+@keyframes panelInL{to{opacity:1;transform:translateX(0)}}
+@keyframes panelInR{to{opacity:1;transform:translateX(0)}}
+.sp-head{font-size:6.5px;letter-spacing:.22em;color:#242424;border-bottom:1px solid #0d0d0d;padding-bottom:5px;margin-bottom:7px;}
+.sp-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:4px;}
+.sp-lbl{font-size:7px;color:#272727;letter-spacing:.07em;flex-shrink:0;}
+.sp-val{font-size:7px;color:#363636;letter-spacing:.06em;font-variant-numeric:tabular-nums;}
+.sp-val.lit{color:#585858;}.sp-bar{height:1px;background:#080808;flex:1;overflow:hidden;}
+.sp-fill{height:100%;background:#2e2e2e;transform-origin:left;transition:transform .5s ease;}
+.sp-bin{font-size:6px;color:#111;letter-spacing:.04em;margin-top:6px;overflow:hidden;white-space:nowrap;}
+#center{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;display:flex;flex-direction:column;align-items:center;gap:0;}
+#logo-wrap{text-align:center;margin-bottom:18px;opacity:0;transform:translateY(12px);animation:logoIn .6s cubic-bezier(.16,1,.3,1) .2s forwards;}
+@keyframes logoIn{to{opacity:1;transform:none}}
+#logo-main{font-size:clamp(30px,4.8vw,54px);font-weight:700;letter-spacing:.24em;color:#fff;position:relative;line-height:1;}
+#logo-main::before{content:attr(data-text);position:absolute;left:0;top:0;color:#fff;clip-path:inset(0 100% 0 0);animation:logoRev 1.0s cubic-bezier(.16,1,.3,1) .28s forwards;}
+@keyframes logoRev{to{clip-path:inset(0 0% 0 0)}}
+#logo-sub{font-size:8.5px;letter-spacing:.4em;color:#2a2a2a;margin-top:6px;}
+#logo-tag{font-size:6.5px;letter-spacing:.28em;color:#181818;margin-top:3px;opacity:0;animation:fi .3s ease 1.2s forwards;}
+#scope-wrap{width:min(540px,78vw);height:58px;border:1px solid #111;background:rgba(0,0,0,.55);position:relative;overflow:hidden;margin-bottom:15px;opacity:0;animation:fi .4s ease .6s forwards;}
+#scope-wrap::before,#scope-wrap::after{content:'';position:absolute;top:0;bottom:0;width:28px;z-index:2;}
+#scope-wrap::before{left:0;background:linear-gradient(90deg,rgba(0,0,0,.9),transparent);}
+#scope-wrap::after{right:0;background:linear-gradient(270deg,rgba(0,0,0,.9),transparent);}
+.stag{position:absolute;font-size:5.5px;color:#181818;z-index:3;letter-spacing:.1em;}
+.stag.tl{top:4px;left:8px;}.stag.br{bottom:4px;right:8px;}
+#c-ms{width:100%;height:100%;display:block;}
+#terminal{width:min(600px,82vw);border:1px solid #0e0e0e;background:rgba(0,0,0,.98);margin-bottom:14px;opacity:0;animation:fi .4s ease .35s forwards;}
+#term-tb{background:#030303;border-bottom:1px solid #0a0a0a;padding:6px 11px;display:flex;align-items:center;gap:7px;}
+.tdot{width:5px;height:5px;border-radius:50%;background:#131313;}
+#term-title{font-size:7px;color:#1e1e1e;letter-spacing:.15em;margin-left:2px;}
+#term-body{padding:10px 13px;font-size:9.5px;line-height:1.75;color:#2a2a2a;max-height:130px;overflow:hidden;}
+.ln{display:block;}.ln-hi{color:#686868;}.ln-ok{color:#383838;}.ln-text{color:#313131;}
+.cursor{display:inline-block;width:6px;height:11px;background:#2e2e2e;vertical-align:text-bottom;animation:cur .8s step-end infinite;}
+@keyframes cur{0%,100%{opacity:1}50%{opacity:0}}
+#progress-wrap{width:min(600px,82vw);opacity:0;animation:fi .4s ease .55s forwards;}
+#prog-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;}
+#prog-lbl{font-size:7.5px;color:#222;letter-spacing:.22em;}
+#prog-pct{font-size:7.5px;color:#363636;letter-spacing:.1em;font-variant-numeric:tabular-nums;}
+#prog-track{width:100%;height:2px;background:#090909;position:relative;}
+#prog-fill{height:100%;background:#fff;width:0%;position:relative;}
+#prog-fill::after{content:'';position:absolute;right:-1px;top:-3px;width:2px;height:8px;background:#fff;box-shadow:0 0 8px 1px rgba(255,255,255,.5);}
+#prog-sub{font-size:7px;color:#1c1c1c;letter-spacing:.14em;margin-top:5px;}
+#freq-wrap{position:fixed;bottom:22px;left:0;right:0;height:30px;z-index:30;pointer-events:none;display:flex;align-items:flex-end;gap:1px;padding:0 3px;opacity:0;animation:fi .6s ease .9s forwards;}
+.fbar{flex:1;background:#0c0c0c;min-height:1px;max-height:100%;}
+#click-hint{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);z-index:60;font-size:6.5px;color:#181818;letter-spacing:.2em;opacity:0;animation:fi .3s ease 2.2s forwards;}
+#wipe{position:fixed;inset:0;z-index:500;background:#fff;transform:scaleY(0);transform-origin:top;pointer-events:none;}
+#wipe.go{animation:wipeAnim .6s cubic-bezier(.76,0,.24,1) forwards;}
+@keyframes wipeAnim{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+@keyframes fi{to{opacity:1}}
+</style>
+</head>
+<body>
+<canvas id="c-flow"></canvas>
+<canvas id="c-torus"></canvas>
+<canvas id="c-nodes"></canvas>
+<canvas id="c-scope"></canvas>
+<canvas id="c-glitch"></canvas>
+<canvas id="c-ripple"></canvas>
+<div id="scanlines"></div><div id="beam"></div><div id="vignette"></div>
+<div id="crs"></div>
+<div id="topbar">
+  <div class="tb-l"><div class="tb-dot"></div><span id="tb-logo">OTERNOS // SECURE BOOT</span><div class="tb-sep"></div><span class="tb-tag">v1.2.0</span></div>
+  <div style="display:flex;gap:16px;align-items:center"><span id="tb-xy">0000,0000</span><span class="tb-tag" id="tb-seq">SEQ:00</span><span id="tb-time">--:--:--</span></div>
+</div>
+<div id="bottombar">
+  <div id="bticker"><span id="bticker-inner">KERNEL OK &nbsp;·&nbsp; AUDIO ENGINE INIT &nbsp;·&nbsp; PATCH SUBSYSTEM ONLINE &nbsp;·&nbsp; STREAM BRIDGE ACTIVE &nbsp;·&nbsp; LIBRARY INDEX BUILD &nbsp;·&nbsp; UI ASSEMBLY &nbsp;·&nbsp; MEMORY MAP OK &nbsp;·&nbsp; DEVICE QUERY COMPLETE &nbsp;·&nbsp; ENTROPY POOL FULL &nbsp;·&nbsp; KERNEL OK &nbsp;·&nbsp; AUDIO ENGINE INIT &nbsp;·&nbsp; PATCH SUBSYSTEM ONLINE &nbsp;·&nbsp; STREAM BRIDGE ACTIVE &nbsp;·&nbsp; LIBRARY INDEX BUILD &nbsp;·&nbsp; UI ASSEMBLY &nbsp;·&nbsp; MEMORY MAP OK &nbsp;·&nbsp; DEVICE QUERY COMPLETE &nbsp;·&nbsp; ENTROPY POOL FULL &nbsp;·&nbsp;</span></div>
+  <span id="bver">BUILD 20260403 · VOID-OS x64</span>
+</div>
+<div class="hline top"></div><div class="hline bot"></div>
+<div class="corner tl"><svg viewBox="0 0 26 26"><path d="M26,2 L2,2 L2,26"/></svg></div>
+<div class="corner tr"><svg viewBox="0 0 26 26"><path d="M26,2 L2,2 L2,26"/></svg></div>
+<div class="corner bl"><svg viewBox="0 0 26 26"><path d="M26,2 L2,2 L2,26"/></svg></div>
+<div class="corner br"><svg viewBox="0 0 26 26"><path d="M26,2 L2,2 L2,26"/></svg></div>
+<div class="crd tl" id="cr-tl">SYS · ONLINE</div><div class="crd tr" id="cr-tr">NODE: 0x4F544</div>
+<div class="crd bl" id="cr-bl">SMP: 44100Hz</div><div class="crd br" id="cr-br">ARCH: VOID-64</div>
+<div class="sidepanel left" id="panel-left">
+  <div class="sp-head">SYS.ENVIRON</div>
+  <div class="sp-row"><span class="sp-lbl">CPU</span><span class="sp-bar"><span class="sp-fill" id="sf-cpu"></span></span><span class="sp-val lit" id="sv-cpu">0%</span></div>
+  <div class="sp-row"><span class="sp-lbl">MEM</span><span class="sp-bar"><span class="sp-fill" id="sf-mem"></span></span><span class="sp-val lit" id="sv-mem">0%</span></div>
+  <div class="sp-row"><span class="sp-lbl">DISK</span><span class="sp-bar"><span class="sp-fill" id="sf-disk"></span></span><span class="sp-val lit" id="sv-disk">0%</span></div>
+  <div class="sp-row"><span class="sp-lbl">NET</span><span class="sp-bar"><span class="sp-fill" id="sf-net"></span></span><span class="sp-val lit" id="sv-net">0ms</span></div>
+  <div style="border-top:1px solid #0a0a0a;margin:7px 0 5px;"></div>
+  <div class="sp-row"><span class="sp-lbl">SAMPLE</span><span class="sp-val">44100 Hz</span></div>
+  <div class="sp-row"><span class="sp-lbl">BUFFER</span><span class="sp-val">1024 smp</span></div>
+  <div class="sp-row"><span class="sp-lbl">LATENCY</span><span class="sp-val" id="sv-lat">-- ms</span></div>
+  <div class="sp-row"><span class="sp-lbl">ENTROPY</span><span class="sp-val lit">FULL</span></div>
+  <div class="sp-bin" id="sp-bin-l">0110 1001 1010 0011</div>
+</div>
+<div class="sidepanel right" id="panel-right">
+  <div class="sp-head">LIBRARY.IDX</div>
+  <div class="sp-row"><span class="sp-lbl">TRACKS</span><span class="sp-val lit">__TRACK_COUNT__</span></div>
+  <div class="sp-row"><span class="sp-lbl">SOURCES</span><span class="sp-val lit">6</span></div>
+  <div class="sp-row"><span class="sp-lbl">PATCHES</span><span class="sp-val lit" id="sv-patches">--</span></div>
+  <div class="sp-row"><span class="sp-lbl">CACHE</span><span class="sp-val lit">WARM</span></div>
+  <div style="border-top:1px solid #0a0a0a;margin:7px 0 5px;"></div>
+  <div class="sp-row"><span class="sp-lbl">SOUNDCLOUD</span><span class="sp-val lit">LINKED</span></div>
+  <div class="sp-row"><span class="sp-lbl">YOUTUBE</span><span class="sp-val lit">LINKED</span></div>
+  <div class="sp-row"><span class="sp-lbl">BANDCAMP</span><span class="sp-val lit">LINKED</span></div>
+  <div class="sp-row"><span class="sp-lbl">DEEZER</span><span class="sp-val lit">LINKED</span></div>
+  <div class="sp-row"><span class="sp-lbl">SPOTIFY</span><span class="sp-val">AVAILABLE</span></div>
+  <div class="sp-bin" id="sp-bin-r">1100 0101 0011 1110</div>
+</div>
+<div id="center">
+  <div id="logo-wrap">
+    <div id="logo-main" data-text="OTERNOS">OTERNOS</div>
+    <div id="logo-sub">// MUSIC INTERFACE SYSTEM</div>
+    <div id="logo-tag">NODE-ID: 0x4F544E52 · ARCH: VOID-64 · BUILD: 20260403</div>
+  </div>
+  <div id="scope-wrap"><span class="stag tl">OSC.CH1 · LISSAJOUS</span><span class="stag br" id="scope-amp">AMP: --dB</span><canvas id="c-ms"></canvas></div>
+  <div id="terminal"><div id="term-tb"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div><span id="term-title">OTERNOS.BOOT · SHELL v1.2</span></div><div id="term-body"><span class="cursor" id="cur"></span></div></div>
+  <div id="progress-wrap"><div id="prog-hdr"><span id="prog-lbl">INITIALIZING</span><span id="prog-pct">0%</span></div><div id="prog-track"><div id="prog-fill"></div></div><div id="prog-sub">STANDING BY...</div></div>
+</div>
+<div id="freq-wrap"></div>
+<div id="click-hint">[ CLICK TO ACCELERATE · MOUSE TO PROBE NETWORK ]</div>
+<div id="wipe"></div>
+
+<script>
+'use strict';
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+const W=()=>window.innerWidth, H=()=>window.innerHeight;
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+const rand=(a,b)=>Math.random()*(b-a)+a;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+// ── CANVAS SETUP ──────────────────────────────────────────────────────────────
+const IDS=['c-flow','c-torus','c-nodes','c-scope','c-glitch','c-ripple'];
+function resizeAll(){
+  IDS.forEach(id=>{const c=document.getElementById(id);c.width=W();c.height=H();});
+  const ms=document.getElementById('c-ms');
+  ms.width=ms.parentElement.clientWidth;ms.height=ms.parentElement.clientHeight;
+}
+resizeAll();window.addEventListener('resize',resizeAll);
+const flowCtx=document.getElementById('c-flow').getContext('2d');
+const torusCtx=document.getElementById('c-torus').getContext('2d');
+const nodesCtx=document.getElementById('c-nodes').getContext('2d');
+const scopeCtx=document.getElementById('c-scope').getContext('2d');
+const glCtx=document.getElementById('c-glitch').getContext('2d');
+const ripCtx=document.getElementById('c-ripple').getContext('2d');
+const msCtx=document.getElementById('c-ms').getContext('2d');
+
+// ── MOUSE & INTERACTION ───────────────────────────────────────────────────────
+let mouse={x:W()/2,y:H()/2,nx:0,ny:0,down:false};
+let ripples=[];
+let bootAccel=1.0;
+let glitchPending=0;
+
+document.addEventListener('mousemove',e=>{
+  mouse.x=e.clientX;mouse.y=e.clientY;
+  mouse.nx=(e.clientX/W()-0.5)*2;mouse.ny=(e.clientY/H()-0.5)*2;
+  document.getElementById('tb-xy').textContent=String(e.clientX).padStart(4,'0')+','+String(e.clientY).padStart(4,'0');
+  const crs=document.getElementById('crs');
+  crs.style.left=e.clientX+'px';crs.style.top=e.clientY+'px';
+  updateParallax();
+});
+document.addEventListener('mousedown',e=>{
+  mouse.down=true;
+  bootAccel=Math.min(5.0,bootAccel+0.6);
+  glitchPending+=3;
+  ripples.push({x:e.clientX,y:e.clientY,r:0,maxR:Math.min(W(),H())*0.4,alpha:0.6,rings:3});
+});
+document.addEventListener('mouseup',()=>{mouse.down=false;});
+
+// ── PARALLAX ──────────────────────────────────────────────────────────────────
+let snx=0,sny=0;
+function updateParallax(){
+  snx=lerp(snx,mouse.nx,0.07);sny=lerp(sny,mouse.ny,0.07);
+  const layers=[
+    {id:'panel-left',  dx:9,  dy:4},
+    {id:'panel-right', dx:-9, dy:4},
+    {id:'terminal',    dx:-3, dy:-1.5},
+    {id:'logo-wrap',   dx:-5, dy:-2.5},
+    {id:'topbar',      dx:-1.5,dy:0},
+  ];
+  layers.forEach(({id,dx,dy})=>{
+    const el=document.getElementById(id);
+    if(el)el.style.transform=`translate(${snx*dx}px,${sny*dy}px)`;
+  });
+}
+
+// ── CLOCK ─────────────────────────────────────────────────────────────────────
+const tbTime=document.getElementById('tb-time');
+function updateClock(){const d=new Date();tbTime.textContent=[d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');}
+updateClock();setInterval(updateClock,1000);
+
+// ── PERLIN NOISE ──────────────────────────────────────────────────────────────
+const _p2=new Uint8Array(256);const _pm=new Uint8Array(512);
+for(let i=0;i<256;i++)_p2[i]=i;
+for(let i=255;i>0;i--){const j=Math.floor(Math.random()*(i+1));[_p2[i],_p2[j]]=[_p2[j],_p2[i]];}
+for(let i=0;i<512;i++)_pm[i]=_p2[i&255];
+function fade(t){return t*t*t*(t*(t*6-15)+10);}
+function grd(h,x,y){const u=h<8?x:y,v=h<4?y:(h===12||h===14?x:0);return((h&1)?-u:u)+((h&2)?-v:v);}
+function n2(x,y){
+  const X=Math.floor(x)&255,Y=Math.floor(y)&255,xf=x-Math.floor(x),yf=y-Math.floor(y);
+  const u=fade(xf),v=fade(yf),A=_pm[X]+Y,B=_pm[X+1]+Y;
+  return lerp(lerp(grd(_pm[A],xf,yf),grd(_pm[B],xf-1,yf),u),lerp(grd(_pm[A+1],xf,yf-1),grd(_pm[B+1],xf-1,yf-1),u),v)*0.5+0.5;
+}
+
+// ── FLOW FIELD ────────────────────────────────────────────────────────────────
+let particles=[],flowT=0;
+const PCNT=260;
+function mkParticle(rnd){return{x:rnd?rand(0,W()):rand(0,W()),y:rnd?rand(0,H()):rand(0,H()),vx:0,vy:0,age:0,maxAge:rand(90,220),spd:rand(0.3,1.1),sz:rand(0.5,1.5)};}
+function initParticles(){particles=[];for(let i=0;i<PCNT;i++)particles.push(mkParticle(true));}
+initParticles();
+function flowAngle(x,y,t){
+  const s=0.0026;
+  const nx2=n2(x*s+t*0.14,y*s);
+  const ny2=n2(x*s,y*s+t*0.14+10);
+  const base=(nx2*2-1)*Math.PI*1.8+(ny2*2-1)*Math.PI*0.5;
+  const dx=mouse.x-x,dy=mouse.y-y,d=Math.sqrt(dx*dx+dy*dy);
+  const inf=Math.max(0,1-d/220)*0.25;
+  return lerp(base,Math.atan2(dy,dx),inf);
+}
+function drawFlow(){
+  const w=W(),h=H(),c=flowCtx;
+  c.fillStyle='rgba(0,0,0,0.055)';c.fillRect(0,0,w,h);
+  particles.forEach((p,i)=>{
+    const a=flowAngle(p.x,p.y,flowT);
+    p.vx=lerp(p.vx,Math.cos(a)*p.spd,0.14);p.vy=lerp(p.vy,Math.sin(a)*p.spd,0.14);
+    const px=p.x,py=p.y;p.x+=p.vx;p.y+=p.vy;p.age++;
+    if(p.x<-10||p.x>w+10||p.y<-10||p.y>h+10||p.age>p.maxAge){particles[i]=mkParticle(true);return;}
+    const af=p.age/p.maxAge,alpha=Math.sin(af*Math.PI)*0.32;
+    const br=20+alpha*110|0;
+    c.strokeStyle=`rgba(${br},${br},${br},${alpha.toFixed(3)})`;
+    c.lineWidth=p.sz;c.beginPath();c.moveTo(px,py);c.lineTo(p.x,p.y);c.stroke();
+  });
+}
+
+// ── 3D WIREFRAME TORUS ────────────────────────────────────────────────────────
+let trX=0.35,trY=0,trZ=0;
+const TR=0.27,tr=0.10,TRings=22,TSec=13;
+function drawTorus(){
+  const w=W(),h=H(),c=torusCtx;c.clearRect(0,0,w,h);
+  const cx=w/2,cy=h/2,sc=Math.min(w,h),R=sc*TR,r=sc*tr,FOV=sc*0.85;
+  // Mouse gently tilts torus
+  trY+=0.0028+mouse.nx*0.0008;trX+=0.0006+mouse.ny*0.0003;
+  const cX=Math.cos(trX),sX=Math.sin(trX),cY=Math.cos(trY),sY=Math.sin(trY);
+  function proj(x3,y3,z3){
+    const x1=x3*cY+z3*sY,z1=-x3*sY+z3*cY;
+    const y1=y3*cX-z1*sX,z2=y3*sX+z1*cX;
+    const d=FOV/(z2+FOV*2.4);
+    return{px:cx+x1*d,py:cy+y1*d,z:z2};
+  }
+  const pts=[];
+  for(let i=0;i<=TRings;i++){
+    const u=(i/TRings)*Math.PI*2,row=[];
+    for(let j=0;j<=TSec;j++){
+      const v=(j/TSec)*Math.PI*2;
+      row.push(proj((R+r*Math.cos(v))*Math.cos(u),(R+r*Math.cos(v))*Math.sin(u),r*Math.sin(v)));
+    }pts.push(row);
+  }
+  c.lineWidth=0.5;
+  for(let i=0;i<TRings;i++){for(let j=0;j<TSec;j++){
+    const p1=pts[i][j],p2=pts[i+1][j],p3=pts[i][j+1];
+    const df=clamp((p1.z+FOV*0.9)/(FOV*1.7),0,1),al=df*0.12;
+    if(al<0.006)continue;
+    c.strokeStyle=`rgba(255,255,255,${al.toFixed(3)})`;
+    c.beginPath();c.moveTo(p1.px,p1.py);c.lineTo(p2.px,p2.py);c.stroke();
+    c.beginPath();c.moveTo(p1.px,p1.py);c.lineTo(p3.px,p3.py);c.stroke();
+  }}
+}
+
+// ── NODE NETWORK ──────────────────────────────────────────────────────────────
+let nodes=[];const NCNT=34;
+function initNodes(){nodes=[];for(let i=0;i<NCNT;i++)nodes.push({x:rand(50,W()-50),y:rand(50,H()-50),vx:rand(-.08,.08),vy:rand(-.08,.08),r:rand(1.2,3.0),life:rand(0.4,1.0)});}
+initNodes();
+function drawNodes(){
+  const w=W(),h=H(),c=nodesCtx;c.clearRect(0,0,w,h);
+  const EMAX=195,MREP=145,MRF=0.055;
+  nodes.forEach(nd=>{
+    const dx=nd.x-mouse.x,dy=nd.y-mouse.y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<MREP&&d>0.1){const f=(1-d/MREP)*MRF;nd.vx+=(dx/d)*f;nd.vy+=(dy/d)*f;}
+    nd.vx*=0.955;nd.vy*=0.955;nd.x+=nd.vx;nd.y+=nd.vy;
+    nd.vx+=rand(-.002,.002);nd.vy+=rand(-.002,.002);
+    const sp=Math.sqrt(nd.vx*nd.vx+nd.vy*nd.vy);if(sp>1.6){nd.vx*=1.6/sp;nd.vy*=1.6/sp;}
+    if(nd.x<35){nd.x=35;nd.vx=Math.abs(nd.vx);}if(nd.x>w-35){nd.x=w-35;nd.vx=-Math.abs(nd.vx);}
+    if(nd.y<42){nd.y=42;nd.vy=Math.abs(nd.vy);}if(nd.y>h-34){nd.y=h-34;nd.vy=-Math.abs(nd.vy);}
+  });
+  for(let i=0;i<nodes.length;i++){for(let j=i+1;j<nodes.length;j++){
+    const dx=nodes[i].x-nodes[j].x,dy=nodes[i].y-nodes[j].y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<EMAX){
+      const mx=(nodes[i].x+nodes[j].x)/2,my=(nodes[i].y+nodes[j].y)/2;
+      const md=Math.sqrt((mx-mouse.x)**2+(my-mouse.y)**2);
+      const mb=Math.max(0,1-md/280)*0.28;
+      const al=(1-d/EMAX)*0.14*nodes[i].life*nodes[j].life+mb;
+      c.strokeStyle=`rgba(255,255,255,${al.toFixed(3)})`;c.lineWidth=0.5;
+      c.beginPath();c.moveTo(nodes[i].x,nodes[i].y);c.lineTo(nodes[j].x,nodes[j].y);c.stroke();
+    }
+  }}
+  nodes.forEach(nd=>{
+    const dx=nd.x-mouse.x,dy=nd.y-mouse.y,md=Math.sqrt(dx*dx+dy*dy);
+    const nr=Math.max(0,1-md/120);
+    const al=0.28*nd.life+nr*0.45,rr=nd.r+nr*2.5;
+    c.beginPath();c.arc(nd.x,nd.y,rr,0,Math.PI*2);
+    c.fillStyle=`rgba(255,255,255,${al.toFixed(3)})`;c.fill();
+  });
+}
+
+// ── FULL-SCREEN SCOPE (background waveform) ───────────────────────────────────
+let scopeT=0;
+function drawScope(){
+  const w=W(),h=H(),c=scopeCtx;c.clearRect(0,0,w,h);
+  const cy=h/2;
+  c.strokeStyle='rgba(255,255,255,0.035)';c.lineWidth=0.6;c.beginPath();
+  for(let i=0;i<=300;i++){
+    const x=i/300*w,t=i/300*Math.PI*2;
+    const y=cy+Math.sin(t*2+scopeT*.7)*38+Math.sin(t*5+scopeT*1.2)*14+Math.sin(t*11+scopeT*.4)*5+(n2(i*.06+scopeT*.3,scopeT*.2)*8-4);
+    i===0?c.moveTo(x,y):c.lineTo(x,y);
+  }c.stroke();
+  c.strokeStyle='rgba(255,255,255,0.055)';c.lineWidth=0.8;c.beginPath();
+  for(let i=0;i<=300;i++){
+    const x=i/300*w,t=i/300*Math.PI*2;
+    const y=cy+Math.sin(t*3+scopeT*1.1)*50+Math.sin(t*7+scopeT*.9)*16+Math.sin(t*.5+scopeT*.2)*55;
+    i===0?c.moveTo(x,y):c.lineTo(x,y);
+  }c.stroke();
+}
+
+// ── LISSAJOUS MINI SCOPE ───────────────────────────────────────────────────────
+let msT=0;
+function drawMiniScope(){
+  const el=document.getElementById('c-ms'),c=msCtx;
+  const w=el.width,h=el.height;c.clearRect(0,0,w,h);
+  // Grid
+  c.strokeStyle='rgba(255,255,255,0.04)';c.lineWidth=0.5;
+  for(let i=1;i<4;i++){c.beginPath();c.moveTo(0,i/4*h);c.lineTo(w,i/4*h);c.stroke();}
+  for(let i=1;i<8;i++){c.beginPath();c.moveTo(i/8*w,0);c.lineTo(i/8*w,h);c.stroke();}
+  // Lissajous (a=3,b=2, phase-shifting)
+  const A=w*0.44,B=h*0.40,cx=w/2,cy=h/2;
+  const a=3,b=2,ph=msT*0.008;
+  c.strokeStyle='rgba(255,255,255,0.6)';c.lineWidth=1.2;c.beginPath();
+  const PTS=220;
+  for(let i=0;i<=PTS;i++){
+    const t=(i/PTS)*Math.PI*2;
+    const x=cx+A*Math.sin(a*t+ph);
+    const y=cy+B*Math.sin(b*t);
+    i===0?c.moveTo(x,y):c.lineTo(x,y);
+  }c.stroke();
+  // Glow pass
+  c.strokeStyle='rgba(255,255,255,0.06)';c.lineWidth=4;c.stroke();
+  // Update scope-amp label
+  document.getElementById('scope-amp').textContent='AMP: '+(Math.abs(Math.sin(msT*.05))*42+12|0)+'.'+((msT*3)%10|0)+'dB';
+}
+
+// ── RIPPLE SYSTEM ─────────────────────────────────────────────────────────────
+function drawRipples(){
+  const c=ripCtx;c.clearRect(0,0,W(),H());
+  ripples=ripples.filter(rp=>{
+    rp.r+=rp.maxR/40;rp.alpha*=0.88;
+    if(rp.alpha<0.01)return false;
+    c.strokeStyle=`rgba(255,255,255,${rp.alpha.toFixed(3)})`;c.lineWidth=1;
+    c.beginPath();c.arc(rp.x,rp.y,rp.r,0,Math.PI*2);c.stroke();
+    if(rp.rings>1&&rp.r>20){
+      c.strokeStyle=`rgba(255,255,255,${(rp.alpha*.5).toFixed(3)})`;c.lineWidth=0.5;
+      c.beginPath();c.arc(rp.x,rp.y,rp.r*0.6,0,Math.PI*2);c.stroke();
+    }return true;
+  });
+}
+
+// ── GLITCH ────────────────────────────────────────────────────────────────────
+let glActive=false;
+function doGlitch(){
+  if(glActive)return;glActive=true;
+  const c=glCtx,w=W(),h=H();
+  let fr=0,max=4+glitchPending;glitchPending=0;
+  function gf(){
+    c.clearRect(0,0,w,h);
+    const sl=3+(Math.random()*3|0);
+    for(let i=0;i<sl;i++){
+      const sy=rand(0,h)|0,sh=rand(2,9)|0,dx=rand(-20,20)|0;
+      c.fillStyle=`rgba(255,255,255,${rand(.03,.11)})`;c.fillRect(0,sy,w,sh);
+      c.save();c.globalAlpha=0.07;c.drawImage(document.getElementById('c-nodes'),dx,0,w,h,0,0,w,h);c.restore();
+    }
+    // Chromatic aberration lines
+    const ly=rand(0,h)|0;
+    c.fillStyle=`rgba(255,80,80,${rand(.03,.07)})`;c.fillRect(0,ly,w,2);
+    c.fillStyle=`rgba(80,80,255,${rand(.03,.07)})`;c.fillRect(2,ly+2,w,2);
+    fr++;
+    if(fr<max)requestAnimationFrame(gf);
+    else{c.clearRect(0,0,w,h);glActive=false;}
+  }gf();
+}
+
+// ── FREQ BARS ─────────────────────────────────────────────────────────────────
+const freqWrap=document.getElementById('freq-wrap');const BAR_CNT=64;let freqBars=[];
+for(let i=0;i<BAR_CNT;i++){const b=document.createElement('div');b.className='fbar';freqWrap.appendChild(b);freqBars.push(b);}
+let freqT=0;
+function drawFreq(){
+  freqBars.forEach((b,i)=>{
+    const x=i/BAR_CNT;
+    const hh=(Math.abs(Math.sin(x*Math.PI*3+freqT*1.8))*.6+Math.abs(Math.sin(x*Math.PI*7+freqT*2.5))*.25+Math.abs(n2(x*4+freqT*.5,freqT*.3)-.5)*.3)*30;
+    const br=15+(hh/30)*40|0;b.style.height=Math.max(1,hh)+'px';b.style.background=`rgb(${br},${br},${br})`;
+  });
+}
+
+// ── FAKE SYS STATS ────────────────────────────────────────────────────────────
+let tCPU=22,tMEM=38,tDisk=56,tNet=8;
+setInterval(()=>{
+  tCPU=clamp(tCPU+rand(-4,4),8,80);tMEM=clamp(tMEM+rand(-2,2),22,68);
+  tDisk=clamp(tDisk+rand(-1,1),38,72);tNet=clamp(tNet+rand(-3,6),2,48);
+  document.getElementById('sf-cpu').style.transform=`scaleX(${tCPU/100})`;
+  document.getElementById('sf-mem').style.transform=`scaleX(${tMEM/100})`;
+  document.getElementById('sf-disk').style.transform=`scaleX(${tDisk/100})`;
+  document.getElementById('sf-net').style.transform=`scaleX(${tNet/100})`;
+  document.getElementById('sv-cpu').textContent=`${tCPU|0}%`;
+  document.getElementById('sv-mem').textContent=`${tMEM|0}%`;
+  document.getElementById('sv-disk').textContent=`${tDisk|0}%`;
+  document.getElementById('sv-net').textContent=`${tNet|0}ms`;
+  document.getElementById('sv-lat').textContent=`${rand(18,32)|0}ms`;
+  // binary panels
+  const hex=()=>Math.floor(Math.random()*0xFFFF).toString(2).padStart(16,'0').replace(/(.{4})/g,'$1 ').trim();
+  document.getElementById('sp-bin-l').textContent=hex();
+  document.getElementById('sp-bin-r').textContent=hex();
+  // corner readouts
+  document.getElementById('cr-tl').textContent=`CPU:${tCPU|0}% MEM:${tMEM|0}%`;
+  document.getElementById('cr-tr').textContent=`0x${Math.floor(Math.random()*0xFFFFF).toString(16).toUpperCase().padStart(5,'0')}`;
+  document.getElementById('cr-bl').textContent=`TICK:${(Date.now()&0xFFFFFF).toString(16).toUpperCase()}`;
+},620);
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────────────
+let animRunning=true,lastT=0;
+function loop(ts){
+  if(!animRunning)return;
+  const dt=Math.min((ts-lastT)/1000,0.1);lastT=ts;
+  flowT+=dt*0.16;scopeT+=dt*0.9;msT+=dt;freqT+=dt*1.1;
+  drawFlow();drawScope();drawTorus();drawNodes();drawMiniScope();drawFreq();drawRipples();
+  if(Math.random()<0.008||glitchPending>0)doGlitch();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CYBERNETIC AUDIO ENGINE — clean, precise, musical
+// Philosophy: Tron / Blade Runner / HAL 9000 — precision, not chaos
+// Chain: Oscillator → ADSR Env → StereoPanner → DynamicsCompressor → Output
+// ═══════════════════════════════════════════════════════════════════════════════
+let _AC = null;
+function ac(){if(!_AC)_AC=new(window.AudioContext||window.webkitAudioContext)();return _AC;}
+
+function getMaster(){
+  const a=ac();if(a._master)return a._master;
+  const c=a.createDynamicsCompressor();
+  c.threshold.value=-16;c.knee.value=6;c.ratio.value=3.5;
+  c.attack.value=0.002;c.release.value=0.18;
+  c.connect(a.destination);a._master=c;return c;
+}
+
+// Clean single tone: freq, wavetype, attack, sustain, decay, vol, pan, optional pitch glide end
+function tone(freq,type,atk,sus,dec,vol,pan,pitchEnd){
+  try{
+    const a=ac(),n=a.currentTime,m=getMaster();
+    const o=a.createOscillator(),e=a.createGain(),p=a.createStereoPanner();
+    o.type=type||'sine';
+    o.frequency.setValueAtTime(freq,n);
+    if(pitchEnd)o.frequency.exponentialRampToValueAtTime(pitchEnd,n+atk+sus+dec);
+    e.gain.setValueAtTime(0,n);
+    e.gain.linearRampToValueAtTime(vol,n+atk);
+    e.gain.setValueAtTime(vol,n+atk+sus);
+    e.gain.exponentialRampToValueAtTime(0.0001,n+atk+sus+dec);
+    p.pan.value=pan||0;
+    o.connect(e);e.connect(p);p.connect(m);
+    o.start(n);o.stop(n+atk+sus+dec+0.05);
+  }catch(e_){}
+}
+
+// Smooth frequency glide from f1 to f2
+function sweep(f1,f2,type,len,vol,pan){
+  try{
+    const a=ac(),n=a.currentTime,m=getMaster();
+    const o=a.createOscillator(),e=a.createGain(),p=a.createStereoPanner();
+    o.type=type||'sine';
+    o.frequency.setValueAtTime(f1,n);
+    o.frequency.exponentialRampToValueAtTime(f2,n+len*0.92);
+    e.gain.setValueAtTime(0,n);
+    e.gain.linearRampToValueAtTime(vol,n+0.008);
+    e.gain.setValueAtTime(vol,n+len*0.72);
+    e.gain.exponentialRampToValueAtTime(0.0001,n+len);
+    p.pan.value=pan||0;
+    o.connect(e);e.connect(p);p.connect(m);
+    o.start(n);o.stop(n+len+0.05);
+  }catch(e_){}
+}
+
+// ── BOOT — machine power-on: sub hum → harmonics → system-ready ping ──────────
+function sndBoot(){
+  // Phase 1: sub hum, two slightly detuned (beating = alive feeling)
+  tone(55,  'sine', 0.9, 1.2, 0.8, 0.07, 0);
+  tone(55.3,'sine', 1.0, 1.1, 0.7, 0.04, 0);
+  // Phase 2: harmonics bloom
+  setTimeout(()=>sweep(110,220,'triangle',1.4,0.05,0),    400);
+  setTimeout(()=>tone(165,'sine',0.2,0.8,0.6,0.03,-0.3), 600);
+  setTimeout(()=>tone(330,'sine',0.1,0.5,0.5,0.025,0.3), 800);
+  // Phase 3: sonar-style ascending sweep then twin confirmation blips
+  setTimeout(()=>sweep(220,1760,'sine',1.0,0.04,0),      1000);
+  setTimeout(()=>tone(880, 'sine',0.005,0.06,0.12,0.045,-0.2),1800);
+  setTimeout(()=>tone(1760,'sine',0.005,0.04,0.10,0.035, 0.2),1950);
+}
+
+// ── BLIPS — D minor pentatonic scale, one note per terminal line ──────────────
+// D4=293.66  F4=349.23  G4=392  A4=440  C5=523.25
+// D5=587.33  F5=698.46  G5=784  A5=880  C6=1046.5
+const CYBER_SCALE=[293.66,349.23,392.00,440.00,523.25,587.33,698.46,783.99,880.00,1046.50];
+function sndBlip(idx){
+  const f=CYBER_SCALE[idx%CYBER_SCALE.length];
+  const pan=((idx%5)-2)*0.22;
+  // Primary: clean sine, slight downward pitch settle (feels digital/precise)
+  tone(f,'sine',0.004,0.008,0.09,0.038,pan,f*0.985);
+  // Sub-octave ghost for body (even lines only)
+  if(idx%2===0)tone(f/2,'sine',0.003,0.005,0.06,0.012,pan*0.5);
+  // Every 4th: quick call-response note a fifth up
+  if(idx%4===0)setTimeout(()=>tone(f*1.5,'sine',0.003,0.004,0.07,0.022,-pan),55);
+}
+
+// ── GLITCH — precise short chirp (digital error), NOT noise ─────────────────
+function sndGlitch(){
+  const base=2200+Math.random()*800;
+  const pan=(Math.random()-0.5)*0.6;
+  tone(base,     'sine',0.002,0.000,0.028,0.05, pan,      base*0.72);
+  setTimeout(()=>tone(base*0.6,'sine',0.001,0.000,0.018,0.035,-pan,base*0.38),22);
+}
+
+// ── ALL SYSTEMS NOMINAL — ascending Dm arpeggio resolving to chord ────────────
+function sndOnline(){
+  const arp=[293.66,349.23,440.00,587.33,698.46,880.00];
+  arp.forEach((f,i)=>setTimeout(()=>tone(f,'sine',0.006,0.05,0.25,0.05,0),i*75));
+  // Chord lands after arpeggio finishes
+  setTimeout(()=>{
+    tone(587.33,'sine',0.025,0.6,0.5,0.048,-0.28);  // D5
+    tone(698.46,'sine',0.025,0.6,0.5,0.042, 0   );  // F5
+    tone(880.00,'sine',0.025,0.6,0.5,0.036, 0.28);  // A5
+    tone(146.83,'sine',0.04, 0.7,0.6,0.04,  0   );  // D3 root bass
+  },arp.length*75+30);
+  // High shimmer overtone, barely there
+  setTimeout(()=>tone(1174.66,'sine',0.01,0.4,0.8,0.012,0),arp.length*75+80);
+}
+
+// ── WIPE — clean descending sweep, system closing ─────────────────────────────
+function sndWipe(){
+  tone(1760,'sine',0.003,0.005,0.06,0.04,0);         // sharp ping at start
+  sweep(880,  55,   'sine',    0.48,0.055,0);          // main descent
+  sweep(1320, 82.5, 'triangle',0.42,0.028,0);          // harmonic fifth above
+}
+
+
+// ── TERMINAL SEQUENCE ─────────────────────────────────────────────────────────
+const termBody=document.getElementById('term-body');
+const cursor=document.getElementById('cur');
+const progFill=document.getElementById('prog-fill');
+const progPct=document.getElementById('prog-pct');
+const progLbl=document.getElementById('prog-lbl');
+const progSub=document.getElementById('prog-sub');
+const tbSeq=document.getElementById('tb-seq');
+const svPatch=document.getElementById('sv-patches');
+const MAX_VIS=6;
+let currentPct=0;
+
+const LINES=[
+  {text:'OTERNOS BOOT MANAGER v1.2.0',             cls:'ln-hi',  pct:4,  lbl:'KERNEL INIT',   sub:'loading kernel modules...'},
+  {text:'  · entropy source: /dev/urandom OK',     cls:'ln-ok',  pct:9,  lbl:'ENTROPY',       sub:'seeding randomness engine...'},
+  {text:'  · memory map: 0x00000000-0x3FFFFFFF',   cls:'ln-ok',  pct:14, lbl:'MEM MAP',        sub:'mapping address space...'},
+  {text:'  · amd64 cpu: 1 core / 2 threads',       cls:'ln-ok',  pct:19, lbl:'CPU PROBE',      sub:'probing cpu topology...'},
+  {text:'mounting audio subsystem...',              cls:'ln-text',pct:24, lbl:'AUDIO MOUNT',    sub:'initialising pygame mixer...'},
+  {text:'  · sample rate: 44100 Hz',               cls:'ln-ok',  pct:28, lbl:'AUDIO CFG',      sub:'configuring sample rate...'},
+  {text:'  · buffer: 1024 smp  ·  latency: 23ms',  cls:'ln-ok',  pct:32, lbl:'AUDIO LATENCY',  sub:'measuring round-trip time...'},
+  {text:'  · channels: stereo  ·  bit depth: 16b', cls:'ln-ok',  pct:35, lbl:'AUDIO FORMAT',   sub:'setting channel format...'},
+  {text:'loading patch subsystem...',              cls:'ln-text',pct:40, lbl:'PATCH LOAD',     sub:'scanning patches/...'},
+  {text:'  · 24 patches registered',               cls:'ln-ok',  pct:45, lbl:'PATCH REG',      sub:'binding patch hooks...'},
+  {text:'  · stream bridge: SC · YT · BC · IA',    cls:'ln-ok',  pct:50, lbl:'STREAM BRIDGE',  sub:'connecting service adapters...'},
+  {text:'building library index...',               cls:'ln-text',pct:55, lbl:'LIB INDEX',      sub:'scanning __TRACK_COUNT__ tracks...'},
+  {text:'  · metadata cache: warm',                cls:'ln-ok',  pct:60, lbl:'META CACHE',     sub:'loading cached metadata...'},
+  {text:'  · waveform renderer: active',           cls:'ln-ok',  pct:64, lbl:'WAVEFORM',       sub:'initialising draw pipeline...'},
+  {text:'assembling UI components...',             cls:'ln-text',pct:69, lbl:'UI ASSEMBLY',    sub:'mounting interface widgets...'},
+  {text:'  · visualiser: flow-field + lissajous',  cls:'ln-ok',  pct:73, lbl:'VISUALISER',     sub:'compiling shader stages...'},
+  {text:'  · eq processor: 8-band IIR',            cls:'ln-ok',  pct:77, lbl:'EQ PROC',        sub:'loading filter coefficients...'},
+  {text:'  · lyric engine: connected',             cls:'ln-ok',  pct:81, lbl:'LYRICS',         sub:'initialising scraper...'},
+  {text:'applying skin and window chrome...',      cls:'ln-text',pct:86, lbl:'SKIN LOAD',      sub:'rendering window chrome...'},
+  {text:'  · dwm compositing: ok',                 cls:'ln-ok',  pct:90, lbl:'DWM',            sub:'patching compositor hooks...'},
+  {text:'',                                        cls:'',        pct:94, lbl:'FINALISE',       sub:'running final checks...'},
+  {text:'ALL SYSTEMS NOMINAL',                     cls:'ln-hi',  pct:100,lbl:'BOOT OK',        sub:'handoff to kernel...'},
+];
+
+async function typeText(text,cls){
+  if(!text)return;
+  const span=document.createElement('span');span.className='ln '+cls;
+  termBody.insertBefore(span,cursor);
+  for(const ch of text){span.textContent+=ch;await delay(rand(5,18)/bootAccel);}
+}
+async function animProgress(to){
+  while(currentPct<to){
+    currentPct=Math.min(currentPct+0.85,to);
+    progFill.style.width=currentPct+'%';
+    progPct.textContent=(currentPct|0)+'%';
+    await delay(10/bootAccel);
+  }
+}
+async function runSequence(){
+  await delay(300);sndBoot();
+  for(const id of['sf-cpu','sf-mem','sf-disk','sf-net'])document.getElementById(id).style.transform='scaleX(0.3)';
+  for(let i=0;i<LINES.length;i++){
+    const line=LINES[i];
+    tbSeq.textContent=`SEQ:${String(i).padStart(2,'0')}`;
+    svPatch.textContent=`${i}${i>8?' (ok)':'...'}`;
+    progLbl.textContent=line.lbl;progSub.textContent=line.sub;
+    if(line.text)sndBlip(i);
+    await typeText(line.text,line.cls);
+    if(line.text)await delay(rand(25,65)/bootAccel);
+    const lns=termBody.querySelectorAll('.ln');
+    if(lns.length>MAX_VIS)for(let k=0;k<lns.length-MAX_VIS;k++)lns[k].remove();
+    await animProgress(line.pct);
+    await delay(rand(55,130)/bootAccel);
+    if(Math.random()<0.28){doGlitch();sndGlitch();}
+  }
+  await delay(250);sndOnline();await delay(350);
+  ['terminal','progress-wrap','scope-wrap'].forEach(id=>{
+    const el=document.getElementById(id);el.style.transition='opacity .5s';el.style.opacity='0';
+  });
+  await delay(400);
+  const lm=document.getElementById('logo-main');
+  lm.style.transition='letter-spacing .4s,opacity .3s';lm.style.letterSpacing='0.38em';
+  doGlitch();sndGlitch();await delay(120);doGlitch();
+  await delay(600);
+  document.getElementById('center').style.transition='opacity .6s';document.getElementById('center').style.opacity='0';
+  document.querySelectorAll('.sidepanel,.corner,.crd').forEach(el=>{el.style.transition='opacity .5s';el.style.opacity='0';});
+  await delay(500);animRunning=false;sndWipe();
+  document.getElementById('wipe').classList.add('go');
+  await delay(620);
+  document.title='BOOT_DONE';
+  if(window.pywebview&&window.pywebview.api)window.pywebview.api.on_boot_done();
+}
+
+runSequence();
+</script>
+</body>
+</html>

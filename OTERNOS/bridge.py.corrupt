@@ -1,0 +1,500 @@
+from __future__ import annotations
+"""
+bridge.py — OTERNOS PLAYER
+Merged from: player_bridge.py + sc_bridge.py
+
+  § 1  PlayerBridge   — HTTP bridge between HTML player UI and Python player
+  § 2  SCBridgeServer  — HTTP bridge between HTML SoundCloud UI and SoundCloudAPI
+"""
+
+import json
+import threading
+import sys
+from pathlib import Path
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+BRIDGE_PORT = 47389
+
+class PlayerBridge:
+    def __init__(self, player):
+        self.player = player
+        self.server = None
+        self.thread = None
+        self._running = False
+        
+        # We need a reference to the outer class instance inside the handler
+        _bridge = self
+        
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, format, *args):
+                pass # suppress stderr logging for clean console
+                
+            def _set_cors(self):
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                self.send_header("Access-Control-Allow-Headers", "Content-Type")
+                
+            def do_OPTIONS(self):
+                self.send_response(200)
+                self._set_cors()
+                self.end_headers()
+                
+            def do_GET(self):
+                if self.path == "/" or self.path == "/index.html":
+                    try:
+                        # Find player_ui.html safely
+                        candidates = []
+                        if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+                            candidates.append(Path(sys._MEIPASS) / "oternos" / "player_ui.html")
+                            candidates.append(Path(sys.executable).parent / "player_ui.html")
+                        else:
+                            candidates.append(Path(__file__).parent / "player_ui.html")
+                            
+                        html_path = None
+                        for p in candidates:
+                            if p.exists():
+                                html_path = p
+                                break
+                                
+                        if not html_path:
+                            self.send_response(404)
+                            self.end_headers()
+                            self.wfile.write(b"player_ui.html not found")
+                            return
+                            
+                        content = html_path.read_text(encoding="utf-8")
+                        self.send_response(200)
+                        self.send_header("Content-type", "text/html")
+                        self.end_headers()
+                        self.wfile.write(content.encode("utf-8"))
+                        
+                    except Exception as e:
+                        self.send_response(500)
+                        self.end_headers()
+                        self.wfile.write(str(e).encode('utf-8'))
+                        
+                elif self.path == "/state":
+                    self._handle_get_state()
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
+            def _handle_get_state(self):
+                try:
+                    p = _bridge.player
+                    
+                    # Compute current track info
+                    track_title = "NO TRACK LOADED"
+                    track_artist = "SYS.IDLE"
+                    album_art = ""
+                    
+                    # 1. Local Library
+                    if p._active_source == "library" and p.current_idx >= 0 and p.current_idx < len(p.queue):
+                        t = p.queue[p.current_idx]
+                        track_title = t.get("title", "")
+                        track_artist = t.get("artist", "")
+                    # 2. Spotify
+                    elif p._active_source == "spotify" and p._sp_playing and len(p._sp_tracks) > 0:
+                        try:
+                            # Try to get currently active track from the Spotify list safely
+                            for t in p._sp_tracks:
+                                # We can't access active index easily from outside, so we'll just check title
+                                pass 
+                            # Safe fallback for now:
+                            track_title = "SPOTIFY STREAM"
+                            track_artist = "ONLINE"
+                        except: pass
+                    # 3. Soundcloud / Youtube / Deezer / Archive / Bandcamp
+                    elif p._active_source == "soundcloud" and getattr(p, "_sc_current_track", None):
+                        track_title = p._sc_current_track.get("title", "")
+                        track_artist = p._sc_current_track.get("artist", "")
+                    elif p._active_source == "youtube" and getattr(p, "_yt_current_track", None):
+                        track_title = p._yt_current_track.get("title", "")
+                        track_artist = p._yt_current_track.get("artist", "")
+                        
+                    # Handle raw path fallback
+                    if (not track_title or track_title == "Unknown") and p._current_play_path:
+                        track_title = Path(p._current_play_path).stem
+                        track_artist = "LOCAL AUDIO"
+
+                    state = {
+                        "playing": p.engine.is_playing,
+                        "volume": p.engine.volume,
+                        "position": p.engine.get_time(),
+                        "duration": p.engine.get_duration(),
+                        "track": track_title,
+                        "artist": track_artist,
+                        "library_count": len(p.library),
+                        "source": p._active_source,
+                        "queue_pos": p.current_idx,
+                        "queue_len": len(p.queue),
+                    }
+                    
+                    self.send_response(200)
+                    self.send_header("Content-type", "application/json")
+                    self._set_cors()
+                    self.end_headers()
+                    self.wfile.write(json.dumps(state).encode("utf-8"))
+                except Exception as e:
+                    self.send_response(500)
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+
+            def do_POST(self):
+                if self.path == "/command":
+                    try:
+                        length = int(self.headers.get("content-length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        data = json.loads(body)
+                        cmd = data.get("cmd")
+                        
+                        p = _bridge.player
+                        
+                        # Route commands via Tkinter mainloop to be thread-safe
+                        if cmd == "play_pause":
+                            p.root.after(0, p._toggle_play)
+                        elif cmd == "next":
+                            p.root.after(0, p._next)
+                        elif cmd == "prev":
+                            p.root.after(0, p._prev)
+                        elif cmd == "seek":
+                            pos = float(data.get("pos", 0))
+                            p.root.after(0, lambda: p._seek_abs(pos))
+                        elif cmd == "seek_rel":
+                            delta = float(data.get("delta", 0))
+                            p.root.after(0, lambda: p._seek_relative(delta))
+                        elif cmd == "volume":
+                            vol = float(data.get("vol", 1.0))
+                            p.root.after(0, lambda: p.engine.set_volume(vol))
+                            
+                        self.send_response(200)
+                        self.send_header("Content-type", "application/json")
+                        self._set_cors()
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"status": "ok"}).encode("utf-8"))
+                        
+                    except Exception as e:
+                        self.send_response(500)
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
+        self.HandlerClass = Handler
+        
+    def start(self):
+        if self._running: return
+        self._running = True
+        try:
+            # Try to bind to port, if fails, we might already have one running
+            self.server = HTTPServer(("127.0.0.1", BRIDGE_PORT), self.HandlerClass)
+            self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+            self.thread.start()
+            print(f"Player Bridge active on port {BRIDGE_PORT}")
+        except Exception as repr:
+            print(f"Failed to start bridge: {r    def stop(self):
+        self._running = False
+        if self.server:
+            try:
+                self.server.shutdown()
+                self.server.server_close()
+            except: pass
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  SC BRIDGE  (was sc_bridge.py)
+# ══════════════════════════════════════════════════════════════════════════════
+
+import urllib.parse
+from typing import Callable, Optional, Any�════════════════
+
+# ── SC Bridge ──────────────────────────────────────────────────────────────────
+
+from __future__ import annotations
+
+import json
+import threading
+import urllib.parse
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Callable, Optional, Any
+
+PORT = 47472
+
+
+def _cors(handler: BaseHTTPRequestHandler) -> None:
+    handler.send_header("Access-Control-Allow-Origin", "*")
+    handler.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    handler.send_header("Access-Control-Allow-Headers", "Content-Type")
+
+
+def _json_response(handler: BaseHTTPRequestHandler, data: Any, status: int = 200) -> None:
+    body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+    handler.send_response(status)
+    handler.send_header("Content-Type", "application/json; charset=utf-8")
+    handler.send_header("Content-Length", str(len(body)))
+    _cors(handler)
+    handler.end_headers()
+    handler.wfile.write(body)
+
+
+def _normalize_track(raw: dict) -> dict:
+    """
+    Map a SoundCloud API v2 track dict to the shape the HTML UI expects:
+      { id, title, artist, dur, plays, likes, genre, liked, artwork_url, permalink_url }
+    """
+    def _fmt_dur(ms: int) -> str:
+        s = max(0, ms // 1000)
+        return f"{s // 60}:{s % 60:02d}"
+
+    return {
+        "id":            raw.get("id", 0),
+        "title":         raw.get("title", ""),
+        "artist":        (raw.get("user") or {}).get("username", raw.get("artist", "")),
+        "dur":           _fmt_dur(raw.get("duration", 0)),
+        "plays":         raw.get("playback_count", 0),
+        "likes":         raw.get("likes_count", raw.get("favoritings_count", 0)),
+        "genre":         (raw.get("genre") or "Unknown").strip() or "Unknown",
+        "liked":         raw.get("_liked", False),          # injected by mixin
+        "artwork_url":   raw.get("artwork_url") or "",
+        "permalink_url": raw.get("permalink_url") or "",
+        # keep the raw dict available under _raw for stream resolution
+        "_raw":          raw,
+    }
+
+
+class _Handler(BaseHTTPRequestHandler):
+    """Request handler — bridge calls Player methods on the main thread via callbacks."""
+
+    # Injected by SCBridgeServer before starting
+    sc_api          = None   # SoundCloudAPI instance
+    on_play         = None   # Callable[[dict], None]  — play a track
+    on_queue        = None   # Callable[[dict], None]  — queue a track
+    on_like_toggle  = None   # Callable[[int, bool], None]
+    get_state       = None   # Callable[[], dict]      — {nowPlaying, liked_ids}
+    # Raw track cache — populated by /search and /likes so /play can resolve streams
+    _raw_cache: dict = {}
+
+    def log_message(self, *args):
+        pass   # suppress console spam
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        _cors(self)
+        self.end_headers()
+
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        qs     = urllib.parse.parse_qs(parsed.query)
+        path   = parsed.path
+
+        if path == "/health":
+            self.send_response(200)
+            _cors(self)
+            self.end_headers()
+            self.wfile.write(b"OK")
+            return
+
+        if path == "/" or path == "/index.html":
+            # Serve the HTML UI over http:// so the webview subprocess can load
+            # it via http://127.0.0.1:47472/ — avoids file:// CORS issues on fetch().
+            from pathlib import Path as _Path
+            html_path = _Path(__file__).parent / "sc_ui_live.html"
+            try:
+                body = html_path.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                _cors(self)
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception:
+                self.send_response(404)
+                _cors(self)
+                self.end_headers()
+            return
+
+        if path == "/search":
+            q = (qs.get("q") or [""])[0].strip()
+            if not q:
+                _json_response(self, [])
+                return
+            try:
+                raw_tracks = self.sc_api.search(q, limit=40) or []
+            except Exception:
+                raw_tracks = []
+            state      = self.get_state() if self.get_state else {}
+            liked_ids  = set(state.get("liked_ids", []))
+            tracks = []
+            for r in raw_tracks:
+                t = _normalize_track(r)
+                t["liked"] = t["id"] in liked_ids
+                # Cache the raw dict so /play can resolve stream URLs
+                _Handler._raw_cache[t["id"]] = r
+                t.pop("_raw", None)
+                tracks.append(t)
+            _json_response(self, tracks)
+            return
+
+        if path == "/likes":
+            try:
+                raw_tracks = self.sc_api.likes(limit=100) or []
+            except Exception:
+                raw_tracks = []
+            state     = self.get_state() if self.get_state else {}
+            liked_ids = set(state.get("liked_ids", []))
+            tracks = []
+            for r in raw_tracks:
+                t = _normalize_track(r)
+                t["liked"] = True
+                liked_ids.add(t["id"])
+                # Cache raw dict
+                _Handler._raw_cache[t["id"]] = r
+                t.pop("_raw", None)
+                tracks.append(t)
+            _json_response(self, tracks)
+            return
+
+        if path == "/stream":
+            track_id = int((qs.get("id") or [0])[0])
+            # The mixin caches raw SC track dicts; look one up by id
+            state = self.get_state() if self.get_state else {}
+            raw   = state.get("track_map", {}).get(track_id)
+            if not raw:
+                _json_response(self, {"url": None, "error": "track not in cache"}, 404)
+                return
+            try:
+                url = self.sc_api.get_stream_url(raw)
+            except Exception as e:
+                _json_response(self, {"url": None, "error": str(e)}, 500)
+                return
+            _json_response(self, {"url": url})
+            return
+
+        if path == "/state":
+            state = self.get_state() if self.get_state else {}
+            # don't send raw track dicts over the wire
+            safe = {k: v for k, v in state.items() if k != "track_map"}
+            _json_response(self, safe)
+            return
+
+        self.send_response(404)
+        _cors(self)
+        self.end_headers()
+
+    def do_POST(self):
+        parsed   = urllib.parse.urlparse(self.path)
+        path     = parsed.path
+        length   = int(self.headers.get("Content-Length", 0))
+        body     = {}
+        if length:
+            try:
+                body = json.loads(self.rfile.read(length))
+            except Exception:
+                pass
+
+        if path == "/play":
+            if self.on_play and body:
+                track_id = body.get("id")
+                # Look up the real raw SC track dict from the bridge cache first.
+                # This is populated by /search and /likes so stream URLs resolve.
+                raw = _Handler._raw_cache.get(track_id)
+                if raw is not None:
+                    play_arg = raw
+                else:
+                    # Fall back: pass the normalised dict; mixin will try track_map
+                    play_arg = body
+                threading.Thread(
+                    target=lambda a=play_arg: self.on_play(a), daemon=True
+                ).start()
+            _json_response(self, {"ok": True})
+            return
+
+        if path == "/queue":
+            if self.on_queue and body:
+                track_id = body.get("id")
+                raw = _Handler._raw_cache.get(track_id)
+                queue_arg = raw if raw is not None else body
+                threading.Thread(
+                    target=lambda a=queue_arg: self.on_queue(a), daemon=True
+                ).start()
+            _json_response(self, {"ok": True})
+            return
+
+        if path == "/like":
+            track_id = body.get("id")
+            liked    = body.get("liked", False)
+            if self.on_like_toggle and track_id is not None:
+                self.on_like_toggle(int(track_id), bool(liked))
+            _json_response(self, {"ok": True})
+            return
+
+        self.send_response(404)
+        _cors(self)
+        self.end_headers()
+
+
+class SCBridgeServer:
+    """
+    Wraps the HTTP server.  Inject the four callbacks before calling start().
+
+    Usage (inside soundcloud_mixin.py):
+        self._sc_bridge = SCBridgeServer()
+        self._sc_bridge.sc_api         = self.sc_api
+        self._sc_bridge.on_play        = self._sc_bridge_play
+        self._sc_bridge.on_queue       = self._sc_bridge_queue
+        self._sc_bridge.on_like_toggle = self._sc_bridge_like
+        self._sc_bridge.get_state      = self._sc_bridge_state
+        self._sc_bridge.start()
+    """
+
+    PORT = PORT
+
+    def __init__(self):
+        self._server: Optional[HTTPServer] = None
+        self._thread: Optional[threading.Thread] = None
+
+        # Public — set these before start()
+        self.sc_api          = None
+        self.on_play:         Optional[Callable] = None
+        self.on_queue:        Optional[Callable] = None
+        self.on_like_toggle:  Optional[Callable] = None
+        self.get_state:       Optional[Callable] = None
+
+    def start(self) -> bool:
+        if self._server:
+            return True  # already running
+        try:
+            outer = self
+
+            class BoundHandler(_Handler):
+                sc_api         = None
+                on_play        = None
+                on_queue       = None
+                on_like_toggle = None
+                get_state      = None
+                _raw_cache     = _Handler._raw_cache  # shared cache instance
+
+            BoundHandler.sc_api          = outer.sc_api
+            BoundHandler.on_play         = outer.on_play
+            BoundHandler.on_queue        = outer.on_queue
+            BoundHandler.on_like_toggle  = outer.on_like_toggle
+            BoundHandler.get_state       = outer.get_state
+
+            self._server = HTTPServer(("127.0.0.1", PORT), BoundHandler)
+            self._thread = threading.Thread(
+                target=self._server.serve_forever, daemon=True
+            )
+            self._thread.start()
+            return True
+        except Exception as e:
+            print(f"[SC BRIDGE] failed to start: {e}")
+            return False
+
+    def stop(self):
+        if self._server:
+            try:
+                self._server.shutdown()
+            except Exception:
+                pass
+            self._server = None

@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OTERNOS // SOUNDCLOUD</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#020202;--p:#060606;--p2:#0a0a0a;--p3:#0e0e0e;--p4:#111;
+  --b:#1a1a1a;--b2:#242424;--b3:#303030;--b4:#3c3c3c;
+  --w:#ffffff;--w2:#cccccc;--w3:#777777;--w4:#484848;--w5:#282828;
+  --hi:#ffffff;--dim:#0a0a0a;--scan:rgba(255,255,255,.014);
+  --act:#ffffff;
+}
+
+/* ── base ── */
+body{
+  background:var(--bg);color:var(--w);
+  font-family:'Courier New',Courier,monospace;font-size:11px;
+  overflow-x:hidden;
+}
+#root{background:var(--bg);min-height:100vh;position:relative}
+
+/* scanline overlay */
+#root::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,var(--scan) 2px,var(--scan) 4px);
+}
+
+/* ── tabs ── */
+.tabs{
+  display:flex;border-bottom:1px solid var(--b);
+  padding:0 14px;background:var(--bg);
+  position:sticky;top:0;z-index:100;
+}
+.tab{
+  padding:9px 14px;font-size:9px;color:var(--w4);cursor:pointer;
+  border-bottom:1px solid transparent;letter-spacing:.15em;
+  transition:color .15s;position:relative;
+}
+.tab:hover{color:var(--w3)}
+.tab.on{color:var(--w);border-bottom-color:var(--w3)}
+.tab.on::before{
+  content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--w3),transparent);
+}
+
+/* ── hero ── */
+.hero{
+  margin:12px 12px 0;
+  border:1px solid var(--b2);
+  background:var(--p);
+  position:relative;overflow:hidden;
+}
+/* corner bracket decorations */
+.hero::before,.hero::after,
+.hero-br::before,.hero-br::after{
+  content:'';position:absolute;width:10px;height:10px;
+  border-color:var(--b3);border-style:solid;pointer-events:none;z-index:2;
+}
+.hero::before{top:0;left:0;border-width:1px 0 0 1px}
+.hero::after{top:0;right:0;border-width:1px 1px 0 0}
+.hero-br::before{bottom:0;left:0;border-width:0 0 1px 1px}
+.hero-br::after{bottom:0;right:0;border-width:0 1px 1px 0}
+
+/* animated grid bg */
+.hero-grid-bg{
+  position:absolute;inset:0;pointer-events:none;overflow:hidden;
+}
+.hero-grid-bg svg{width:100%;height:100%;opacity:.06}
+
+/* scan line on hero */
+.hero-scanline{
+  position:absolute;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);
+  animation:scan 4s linear infinite;z-index:1;pointer-events:none;
+}
+@keyframes scan{0%{top:-1px}100%{top:calc(100% + 1px)}}
+
+.hero-inner{display:flex;align-items:center;gap:16px;padding:16px 18px;position:relative;z-index:2}
+
+.hero-art{
+  width:90px;height:90px;flex-shrink:0;
+  border:1px solid var(--b3);background:var(--p2);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+.hero-art-c{position:absolute;width:8px;height:8px;border-color:var(--b4);border-style:solid}
+.hero-art-c.tl{top:4px;left:4px;border-width:1px 0 0 1px}
+.hero-art-c.tr{top:4px;right:4px;border-width:1px 1px 0 0}
+.hero-art-c.bl{bottom:4px;left:4px;border-width:0 0 1px 1px}
+.hero-art-c.br{bottom:4px;right:4px;border-width:0 1px 1px 0}
+
+/* glitch flash on hero art */
+.hero-art::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,transparent 40%,rgba(255,255,255,.03) 50%,transparent 60%);
+  animation:glint 6s ease-in-out infinite;
+}
+@keyframes glint{0%,90%,100%{opacity:0}92%{opacity:1}94%{opacity:0}96%{opacity:.5}98%{opacity:0}}
+
+.hero-meta{flex:1;min-width:0}
+.hero-eyebrow{
+  font-size:8px;letter-spacing:.2em;color:var(--w3);margin-bottom:6px;
+  display:flex;align-items:center;gap:8px;
+}
+.hero-eyebrow::before{content:'';display:inline-block;width:16px;height:1px;background:var(--w3)}
+.hero-status{
+  display:inline-block;font-size:7px;letter-spacing:.12em;
+  color:var(--w3);border:1px solid var(--b3);padding:1px 5px;
+  animation:blink 2.5s step-end infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+.hero-title{
+  font-size:13px;font-weight:bold;color:var(--hi);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  margin-bottom:3px;letter-spacing:.05em;
+}
+.hero-artist{font-size:10px;color:var(--w2);margin-bottom:8px;letter-spacing:.07em}
+
+.hero-stats{display:flex;gap:0;margin-bottom:10px}
+.hstat{
+  font-size:8px;color:var(--w3);letter-spacing:.1em;
+  border-right:1px solid var(--b2);padding:0 10px;
+}
+.hstat:first-child{padding-left:0}
+.hstat:last-child{border-right:none}
+.hstat b{color:var(--w2);font-weight:normal}
+
+.hero-btns{display:flex;gap:6px;align-items:center}
+.btn-play{
+  display:flex;align-items:center;gap:7px;
+  background:var(--w);color:#040404;border:none;
+  padding:6px 14px;font-size:9px;font-family:'Courier New',monospace;
+  letter-spacing:.12em;cursor:pointer;font-weight:bold;
+  transition:all .15s;position:relative;overflow:hidden;
+}
+.btn-play::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);
+  transform:translateX(-100%);
+}
+.btn-play:hover::after{animation:sheen .4s ease-out}
+@keyframes sheen{to{transform:translateX(100%)}}
+.btn-play:hover{background:var(--hi)}
+
+.btn-sm{
+  background:transparent;color:var(--w3);
+  border:1px solid var(--b2);
+  padding:6px 10px;font-size:9px;font-family:'Courier New',monospace;
+  cursor:pointer;letter-spacing:.08em;transition:all .15s;
+}
+.btn-sm:hover{border-color:var(--b3);color:var(--w2)}
+.btn-sm.liked{color:var(--w);border-color:var(--b3)}
+
+.hero-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0}
+.hero-wave{display:flex;align-items:flex-end;gap:2px;height:36px}
+.hero-wave span{
+  width:2px;border-radius:0;background:var(--b3);
+  animation:wb 1.4s ease-in-out infinite;transform-origin:bottom;
+}
+.hero-wave span.lit{background:var(--w3)}
+.hero-wave span.hi{background:var(--w2)}
+@keyframes wb{0%,100%{transform:scaleY(.15)}50%{transform:scaleY(1)}}
+
+.hero-data{font-size:7px;letter-spacing:.1em;color:var(--w3);text-align:right;line-height:1.8}
+
+/* ── section labels ── */
+.sec{padding:10px 14px 0;display:flex;align-items:center;gap:8px}
+.sec-lbl{font-size:8px;letter-spacing:.2em;color:var(--w3)}
+.sec-line{flex:1;height:1px;background:linear-gradient(90deg,var(--b2),transparent)}
+.sec-ct{font-size:8px;color:var(--w4);letter-spacing:.08em}
+
+/* ── search row ── */
+.search-row{display:flex;gap:6px;padding:10px 12px 8px;align-items:center}
+.srch-wrap{flex:1;position:relative}
+.srch{
+  width:100%;background:var(--p);border:1px solid var(--b);
+  color:var(--w);font-family:'Courier New',monospace;font-size:10px;
+  padding:7px 10px 7px 30px;outline:none;
+  transition:border-color .15s;letter-spacing:.05em;
+}
+.srch:focus{border-color:var(--b2);background:var(--p2)}
+.srch::placeholder{color:var(--w4)}
+.srch-ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);pointer-events:none}
+.ctrl-btn{
+  background:var(--p);border:1px solid var(--b);color:var(--w4);
+  padding:7px 10px;font-size:8px;font-family:'Courier New',monospace;
+  cursor:pointer;letter-spacing:.1em;transition:all .15s;
+}
+.ctrl-btn:hover{border-color:var(--b3);color:var(--w2)}
+.ctrl-btn.asc::after{content:' ▴'}
+.ctrl-btn.desc::after{content:' ▾'}
+
+/* ── trending strip ── */
+.tstrip{
+  display:flex;gap:8px;overflow-x:auto;
+  padding:8px 12px 10px;scrollbar-width:none;
+}
+.tstrip::-webkit-scrollbar{display:none}
+
+.tcard{flex-shrink:0;width:100px;cursor:pointer}
+.tcard-art{
+  width:100px;height:100px;border:1px solid var(--b);background:var(--p2);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+  transition:border-color 200ms cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.tcard:hover .tcard-art{border-color:var(--b4)}
+.tcard-art-img{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  opacity:0;transition:opacity 280ms cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.tcard-art-img.loaded{opacity:1}
+.tcard-art-glyph{opacity:.25;transition:opacity 200ms cubic-bezier(0.25,0.46,0.45,0.94);position:relative;z-index:1}
+.tcard:hover .tcard-art-glyph{opacity:.5}
+.tcard-art-img.loaded ~ .tcard-art-glyph{opacity:0}
+
+/* corner ticks on trend card */
+.tcard-art::before,.tcard-art::after{
+  content:'';position:absolute;width:5px;height:5px;
+  border-color:var(--b3);border-style:solid;z-index:2;
+  transition:border-color 200ms cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.tcard-art::before{top:2px;left:2px;border-width:1px 0 0 1px}
+.tcard-art::after{bottom:2px;right:2px;border-width:0 1px 1px 0}
+.tcard:hover .tcard-art::before,.tcard:hover .tcard-art::after{border-color:var(--b4)}
+
+.t-overlay{
+  position:absolute;inset:0;background:rgba(0,0,0,.72);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  gap:4px;opacity:0;z-index:3;
+  transition:opacity 200ms cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.tcard:hover .t-overlay{opacity:1}
+.play-btn-glyph{
+  width:22px;height:22px;border:1px solid rgba(255,255,255,.4);
+  display:flex;align-items:center;justify-content:center;
+}
+.play-tri{
+  width:0;height:0;
+  border-top:5px solid transparent;
+  border-bottom:5px solid transparent;
+  border-left:9px solid rgba(255,255,255,.8);
+  margin-left:2px;
+}
+.t-overlay-rank{font-size:7px;color:rgba(255,255,255,.4);letter-spacing:.12em}
+
+.tcard-title{font-size:9px;color:var(--w);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.03em}
+.tcard-artist{font-size:8px;color:var(--w3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tcard-plays{font-size:7px;color:var(--w4);margin-top:3px;letter-spacing:.08em}
+
+/* ── track list ── */
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--b),transparent);margin:0 12px}
+
+.tlist{padding:0 4px}
+.tr-item{
+  display:flex;align-items:center;gap:8px;
+  padding:4px 8px;cursor:pointer;
+  transition:background 160ms cubic-bezier(0.25,0.46,0.45,0.94);position:relative;
+  border-bottom:1px solid transparent;
+}
+.tr-item:hover{background:var(--dim);border-bottom-color:var(--b)}
+.tr-item.playing{background:#080808;border-bottom-color:var(--b)}
+
+/* left gutter: number / play indicator */
+.tr-n{
+  width:18px;font-size:8px;color:var(--w4);
+  text-align:right;flex-shrink:0;letter-spacing:.04em;
+  position:relative;
+}
+.tr-item:hover .tr-n{opacity:0}
+.tr-play-ico{
+  position:absolute;right:0;top:50%;transform:translateY(-50%);
+  display:none;
+}
+.tr-item:hover .tr-play-ico{display:block}
+
+/* art square */
+.tr-art{
+  width:32px;height:32px;flex-shrink:0;
+  border:1px solid var(--b);background:var(--p2);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+.tr-art svg{opacity:.35;position:relative;z-index:1}
+.tr-art-img{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  opacity:0;transition:opacity 260ms cubic-bezier(0.25,0.46,0.45,0.94);
+  z-index:0;
+}
+.tr-art-img.loaded{opacity:1}
+.tr-art-img.loaded ~ svg{opacity:0}
+
+/* artwork hover popup */
+.tr-thumb-popup{
+  position:fixed;width:90px;height:90px;
+  border:1px solid var(--b3);background:var(--p2);
+  overflow:hidden;pointer-events:none;z-index:9000;
+  opacity:0;transform:scale(0.9);
+  transition:opacity 140ms cubic-bezier(0.25,0.46,0.45,0.94),
+             transform 140ms cubic-bezier(0.25,0.46,0.45,0.94);
+  image-rendering:auto;
+}
+.tr-thumb-popup.visible{opacity:1;transform:scale(1)}
+.tr-thumb-popup img{
+  width:100%;height:100%;object-fit:cover;display:block;
+  opacity:0;transition:opacity 200ms ease;
+}
+.tr-thumb-popup-corner{
+  position:absolute;width:6px;height:6px;border-color:var(--b4);border-style:solid;
+}
+.tr-thumb-popup-corner.tl{top:2px;left:2px;border-width:1px 0 0 1px}
+.tr-thumb-popup-corner.br{bottom:2px;right:2px;border-width:0 1px 1px 0}
+
+.tr-art-eq{
+  position:absolute;inset:0;background:rgba(0,0,0,.7);
+  display:none;align-items:flex-end;justify-content:center;gap:2px;padding:5px 4px;
+  z-index:2;
+}
+.tr-item.playing .tr-art-eq{display:flex}
+.eqb{
+  width:2px;border-radius:0;background:var(--w3);
+  animation:eq .8s ease-in-out infinite;transform-origin:bottom;
+}
+@keyframes eq{0%,100%{transform:scaleY(.1)}50%{transform:scaleY(1)}}
+
+/* info */
+.tr-info{flex:1;min-width:0}
+.tr-title{
+  font-size:10px;color:var(--w);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  letter-spacing:.03em;
+}
+.tr-item.playing .tr-title{color:var(--hi)}
+.tr-artist{font-size:8px;color:var(--w3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-tag{
+  display:inline-block;font-size:7px;padding:1px 4px;
+  background:var(--p3);color:var(--w4);
+  border:1px solid var(--b);margin-top:2px;letter-spacing:.08em;
+}
+.tr-item.playing .tr-tag{border-color:var(--b2);color:var(--w3)}
+
+/* right stats */
+.tr-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.tr-stat{font-size:8px;color:var(--w4);min-width:30px;text-align:right;letter-spacing:.04em}
+.tr-dur{font-size:8px;color:var(--w3);min-width:26px;text-align:right;font-variant-numeric:tabular-nums}
+.tr-heart{
+  width:16px;height:16px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;opacity:0;
+  transition:opacity 160ms cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.tr-item:hover .tr-heart{opacity:.6}
+.tr-heart.on{opacity:1}
+
+/* scan / progress bottom edge */
+.tr-prog{
+  position:absolute;bottom:0;left:8px;right:8px;height:1px;
+  background:var(--b);opacity:0;
+  transition:opacity 160ms cubic-bezier(0.25,0.46,0.45,0.94);overflow:hidden;
+}
+.tr-item:hover .tr-prog{opacity:1}
+.tr-item.playing .tr-prog{opacity:1}
+.tr-prog-fill{height:100%;background:var(--w3);transition:width 0s}
+
+/* glitch row flash on currently playing */
+.tr-item.playing::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:var(--w3);
+}
+
+/* ── load more ── */
+.load-more{text-align:center;padding:14px 0 20px}
+.lm-btn{
+  background:transparent;border:1px solid var(--b);color:var(--w4);
+  font-family:'Courier New',monospace;font-size:8px;
+  padding:7px 24px;cursor:pointer;letter-spacing:.15em;
+  transition:all .15s;position:relative;overflow:hidden;
+}
+.lm-btn:hover{border-color:var(--b3);color:var(--w2)}
+
+/* queue button in each row — matches heart style */
+.tr-queue-btn{
+  width:16px;height:16px;background:transparent;border:none;
+  color:var(--w4);font-size:13px;cursor:pointer;
+  opacity:0;transition:opacity .12s;padding:0;line-height:1;
+  font-family:'Courier New',monospace;
+}
+.tr-item:hover .tr-queue-btn{opacity:.5}
+.tr-queue-btn:hover{opacity:1 !important;color:var(--w2)}
+
+/* ── status bar (bottom) ── */
+.statusbar{
+  position:sticky;bottom:0;
+  border-top:1px solid var(--b);background:var(--bg);
+  display:flex;align-items:center;gap:0;
+  padding:4px 12px;z-index:50;
+}
+.sb-seg{
+  font-size:7px;color:var(--w4);letter-spacing:.12em;
+  border-right:1px solid var(--b);padding:0 10px;
+}
+.sb-seg:first-child{padding-left:0}
+.sb-seg:last-child{border-right:none}
+.sb-blink{animation:blink 1.8s step-end infinite}
+</style>
+</head>
+<body>
+<div id="root">
+
+<!-- header -->
+<div class="tabs">
+  <div class="tab on">[ SOUNDCLOUD ]</div>
+  <div class="tab" id="tabSearch" onclick="switchView('search')" style="cursor:pointer">SEARCH</div>
+  <div class="tab" id="tabLikes"  onclick="switchView('likes')"  style="cursor:pointer">LIKES</div>
+  <div style="flex:1"></div>
+  <div class="tab" id="bridgeStatus" style="font-size:7px;color:#2a2a2a;cursor:default">○ BRIDGE</div>
+</div>
+
+<!-- hero -->
+<div class="hero" id="hero">
+  <div class="hero-br"></div>
+  <div class="hero-grid-bg">
+    <svg viewBox="0 0 800 120" preserveAspectRatio="none" fill="none">
+      <!-- vertical grid lines -->
+      <line x1="50" y1="0" x2="50" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="100" y1="0" x2="100" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="150" y1="0" x2="150" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="200" y1="0" x2="200" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="250" y1="0" x2="250" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="300" y1="0" x2="300" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="350" y1="0" x2="350" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="400" y1="0" x2="400" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="450" y1="0" x2="450" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="500" y1="0" x2="500" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="550" y1="0" x2="550" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="600" y1="0" x2="600" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="650" y1="0" x2="650" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="700" y1="0" x2="700" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <line x1="750" y1="0" x2="750" y2="120" stroke="#fff" stroke-width="0.5"/>
+      <!-- horizontal grid lines -->
+      <line x1="0" y1="30" x2="800" y2="30" stroke="#fff" stroke-width="0.5"/>
+      <line x1="0" y1="60" x2="800" y2="60" stroke="#fff" stroke-width="0.5"/>
+      <line x1="0" y1="90" x2="800" y2="90" stroke="#fff" stroke-width="0.5"/>
+    </svg>
+  </div>
+  <div class="hero-scanline"></div>
+  <div class="hero-inner">
+    <div class="hero-art" id="heroArt">
+      <div class="hero-art-c tl"></div><div class="hero-art-c tr"></div>
+      <div class="hero-art-c bl"></div><div class="hero-art-c br"></div>
+      <!-- vinyl glyph -->
+      <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+        <circle cx="28" cy="28" r="24" stroke="#3a3a3a" stroke-width="1"/>
+        <circle cx="28" cy="28" r="18" stroke="#2c2c2c" stroke-width="1"/>
+        <circle cx="28" cy="28" r="12" stroke="#252525" stroke-width="1"/>
+        <circle cx="28" cy="28" r="6" stroke="#2c2c2c" stroke-width="1"/>
+        <circle cx="28" cy="28" r="2.5" fill="#3a3a3a"/>
+        <line x1="4" y1="28" x2="10" y2="28" stroke="#282828" stroke-width="1"/>
+        <line x1="46" y1="28" x2="52" y2="28" stroke="#282828" stroke-width="1"/>
+        <line x1="28" y1="4" x2="28" y2="10" stroke="#282828" stroke-width="1"/>
+        <line x1="28" y1="46" x2="28" y2="52" stroke="#282828" stroke-width="1"/>
+        <!-- read arm -->
+        <path d="M28 16 L28 28 L38 28" stroke="#555" stroke-width="1.5" stroke-linecap="square" fill="none"/>
+        <circle cx="38" cy="28" r="2" fill="#444"/>
+      </svg>
+    </div>
+    <div class="hero-meta">
+      <div class="hero-eyebrow">
+        <span>NOW FEATURED // TRACK_<span id="heroIdx">015</span></span>
+        <span class="hero-status" id="heroBadge">PLAYING</span>
+      </div>
+      <div class="hero-title" id="heroTitle">Six little eggs — Nightcore</div>
+      <div class="hero-artist" id="heroArtist">DJ Schnuffelienchen &nbsp;·&nbsp; [Nightcore]</div>
+      <div class="hero-stats">
+        <span class="hstat"><b id="heroPlays">1.4M</b> plays</span>
+        <span class="hstat"><b id="heroLikes">465k</b> likes</span>
+        <span class="hstat"><b id="heroDur">3:22</b></span>
+        <span class="hstat"><b id="heroGenre">Nightcore</b></span>
+      </div>
+      <div class="hero-btns">
+        <button class="btn-play" id="heroPlayBtn">
+          <svg width="8" height="10" viewBox="0 0 8 10" fill="none"><polygon points="0,0 8,5 0,10" fill="#040404"/></svg>
+          PLAY NOW
+        </button>
+        <button class="btn-sm">+ QUEUE</button>
+        <button class="btn-sm" id="heroHeart">♥ LIKE</button>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="hero-wave" id="heroWave"></div>
+      <div class="hero-data" id="heroData">
+        SRC: soundcloud.com<br>
+        CODEC: AAC-128<br>
+        BIT: 128kbps<br>
+        <span id="heroTime" class="sb-blink">--:--</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- search + sort -->
+<div class="search-row">
+  <div class="srch-wrap">
+    <svg class="srch-ico" width="11" height="11" viewBox="0 0 11 11" fill="none">
+      <circle cx="4.5" cy="4.5" r="3.5" stroke="#3a3a3a" stroke-width="1.2"/>
+      <line x1="7.5" y1="7.5" x2="10" y2="10" stroke="#3a3a3a" stroke-width="1.2" stroke-linecap="square"/>
+    </svg>
+    <input class="srch" id="srch" placeholder="FILTER TRACKS..." oninput="doFilter(this.value)"/>
+  </div>
+  <button class="ctrl-btn" id="sortPlays" onclick="sortBy('plays')">PLAYS</button>
+  <button class="ctrl-btn" id="sortLikes" onclick="sortBy('likes')">LIKES</button>
+</div>
+
+<!-- trending -->
+<div class="sec">
+  <span class="sec-lbl">&gt;&gt; TRENDING</span>
+  <div class="sec-line"></div>
+</div>
+<div class="tstrip" id="tstrip"></div>
+<div class="divider"></div>
+
+<!-- favorites -->
+<div class="sec" style="padding-top:8px">
+  <span class="sec-lbl">&gt;&gt; FAVORITES</span>
+  <div class="sec-line"></div>
+  <span class="sec-ct" id="favCt">20 TRACKS</span>
+</div>
+<div class="tlist" id="tlist"></div>
+<div class="load-more" id="loadMoreWrap">
+  <button class="lm-btn" onclick="loadMore()">[ LOAD MORE ]</button>
+</div>
+
+<!-- status bar -->
+<div class="statusbar">
+  <span class="sb-seg">OTERNOS v1.1</span>
+  <span class="sb-seg">SRC: SOUNDCLOUD</span>
+  <span class="sb-seg" id="sbTrack">NO TRACK</span>
+  <span class="sb-seg" id="sbBridge" style="color:#2a2a2a">○ BRIDGE</span>
+  <span class="sb-seg sb-blink">■ LIVE</span>
+</div>
+
+</div><!-- #root -->
+
+<!-- artwork hover popup (shared, repositioned by JS) -->
+<div class="tr-thumb-popup" id="thumbPopup">
+  <img id="thumbPopupImg" src="" alt=""/>
+  <div class="tr-thumb-popup-corner tl"></div>
+  <div class="tr-thumb-popup-corner br"></div>
+</div>
+
+<script>
+// ── Bridge ────────────────────────────────────────────────────────
+const BRIDGE = 'http://127.0.0.1:47472';
+let bridgeOk  = false;
+let TRACKS    = [];   // populated from bridge search/likes
+let TRENDING  = [];
+let nowPlayingId = null;
+let shown     = [];
+let pageSize  = 20;
+let sortKey   = null, sortDir = 1;
+let currentView = 'search'; // 'search' | 'likes'
+
+async function bridgeCall(method, path, body) {
+  try {
+    const opts = { method, headers: {'Content-Type':'application/json'} };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(BRIDGE + path, opts);
+    return r.ok ? await r.json() : null;
+  } catch(e) { return null; }
+}
+
+async function checkBridge() {
+  try {
+    const r = await fetch(BRIDGE + '/health');
+    bridgeOk = r.ok;
+  } catch(e) { bridgeOk = false; }
+  const el = document.getElementById('bridgeStatus');
+  if (el) {
+    el.textContent = bridgeOk ? '● BRIDGE' : '○ BRIDGE';
+    el.style.color  = bridgeOk ? '#555' : '#2a2a2a';
+  }
+}
+
+function fmtPlays(n){
+  if(n>=1000000) return (n/1000000).toFixed(1).replace('.0','')+'M';
+  if(n>=1000) return Math.round(n/1000)+'k';
+  return String(n);
+}
+
+// ── Load tracks from bridge ────────────────────────────────────────
+async function loadTracks(results) {
+  TRACKS = results.map((t, i) => ({
+    id: t.id, title: t.title, artist: t.artist,
+    dur: t.dur, plays: t.plays, likes: t.likes || 0,
+    genre: t.genre || '', liked: t.liked || false,
+    artwork_url: t.artwork_url || '',
+    // Keep raw for passing back to bridge — critical for playback
+    _raw: t,
+    g: i % GLYPHS_SM.length
+  }));
+  shown = [...TRACKS];
+  // Rebuild trending from top plays
+  TRENDING = [...TRACKS].sort((a,b) => b.plays - a.plays).slice(0, 7);
+  renderTrending();
+  applyFilter();
+  render();
+  document.getElementById('favCt').textContent = shown.length + ' TRACKS';
+  if (TRACKS.length > 0 && !nowPlayingId) updateHero(TRACKS[0].id);
+}
+
+// ── Search via bridge ──────────────────────────────────────────────
+async function searchBridge(q) {
+  if (!bridgeOk || !q.trim()) return;
+  setStatus('SEARCHING...');
+  const results = await bridgeCall('GET', '/search?q=' + encodeURIComponent(q));
+  if (results && results.length > 0) {
+    await loadTracks(results);
+    setStatus(results.length + ' RESULTS');
+  } else {
+    setStatus('NO RESULTS');
+  }
+}
+
+// ── Load likes via bridge ──────────────────────────────────────────
+async function loadLikes() {
+  if (!bridgeOk) { setStatus('BRIDGE OFFLINE'); return; }
+  setStatus('LOADING LIKES...');
+  const results = await bridgeCall('GET', '/likes');
+  if (results && results.length > 0) {
+    await loadTracks(results);
+    setStatus(results.length + ' LIKED TRACKS');
+  } else {
+    setStatus('NO LIKES — TRY ADDING AN OAUTH TOKEN');
+  }
+}
+
+function setStatus(msg) {
+  const el = document.getElementById('sbTrack');
+  if (el) el.textContent = msg;
+}
+
+// ── View switching ─────────────────────────────────────────────────
+function switchView(view) {
+  currentView = view;
+  document.getElementById('tabSearch').classList.toggle('on', view === 'search');
+  document.getElementById('tabLikes').classList.toggle('on',  view === 'likes');
+  if (view === 'likes') {
+    loadLikes();
+  } else {
+    // Show search box, clear to let user type
+    document.getElementById('srch').focus();
+  }
+}
+
+// ── Hero ───────────────────────────────────────────────────────────
+function updateHero(id) {
+  const t = TRACKS.find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('heroTitle').textContent  = t.title;
+  document.getElementById('heroArtist').textContent = t.artist + '  ·  [' + t.genre + ']';
+  document.getElementById('heroIdx').textContent    = String(t.id).padStart(3,'0');
+  document.getElementById('heroPlays').textContent  = fmtPlays(t.plays);
+  document.getElementById('heroLikes').textContent  = t.likes ? fmtPlays(t.likes) : '--';
+  document.getElementById('heroDur').textContent    = t.dur;
+  document.getElementById('heroGenre').textContent  = t.genre;
+  document.getElementById('heroBadge').textContent  = id === nowPlayingId ? 'PLAYING' : 'QUEUED';
+  document.getElementById('sbTrack').textContent    = t.title.substring(0, 28) + '…';
+  const hb = document.getElementById('heroHeart');
+  if (hb) hb.textContent = t.liked ? '♥ LIKED' : '♥ LIKE';
+  // Hero artwork
+  const artEl = document.getElementById('heroArt');
+  if (artEl && t.artwork_url) {
+    let img = artEl.querySelector('.hero-bg-img');
+    if (!img) {
+      img = document.createElement('img');
+      img.className = 'hero-bg-img';
+      img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 320ms cubic-bezier(0.25,0.46,0.45,0.94);z-index:0';
+      artEl.insertBefore(img, artEl.firstChild);
+    }
+    const src = t.artwork_url.replace('-large','-t300x300');
+    if (img.src !== src) {
+      img.style.opacity = '0';
+      img.onload = () => { img.style.opacity = '1'; };
+      img.onerror = () => { img.style.display = 'none'; };
+      img.src = src;
+    }
+  }
+}
+
+function buildHeroWave(){
+  const vals = [5,9,15,8,22,13,18,7,20,11,25,9,19,14,5,17,11,23,8,19,12,4,20,14,9];
+  const w = document.getElementById('heroWave');
+  if (!w) return;
+  w.innerHTML = vals.map((v,i) => {
+    const cls = i>9&&i<18?'lit':''; const hi = i>11&&i<16?'hi':'';
+    return `<span style="height:${v}px;animation-delay:${(i*.055).toFixed(2)}s" class="${cls} ${hi}"></span>`;
+  }).join('');
+}
+
+// ── Trending ───────────────────────────────────────────────────────
+function renderTrending(){
+  const el = document.getElementById('tstrip');
+  if (!el) return;
+  el.innerHTML = TRENDING.map((t,i) => `
+    <div class="tcard" onclick="setPlaying(${t.id})">
+      <div class="tcard-art">
+        ${t.artwork_url ? `<img class="tcard-art-img" src="${t.artwork_url.replace('-large','-t300x300')}" alt="" onload="this.classList.add('loaded')" onerror="this.style.display='none'"/>` : ''}
+        <div class="tcard-art-glyph">${GLYPHS_LG[i%GLYPHS_LG.length]}</div>
+        <div class="t-overlay">
+          <div class="play-btn-glyph"><div class="play-tri"></div></div>
+          <div class="t-overlay-rank">#${i+1} TRENDING</div>
+        </div>
+      </div>
+      <div class="tcard-title">${t.title}</div>
+      <div class="tcard-artist">${t.artist}</div>
+      <div class="tcard-plays">// ${fmtPlays(t.plays)}</div>
+    </div>`).join('');
+}
+
+// ── Play — sends REAL track data to bridge ─────────────────────────
+function setPlaying(id) {
+  const t = TRACKS.find(x => x.id === id);
+  if (!t) return;
+  nowPlayingId = id;
+  updateHero(id);
+  render();
+  // Send the full track object to the bridge so Python can look it up
+  bridgeCall('POST', '/play', t._raw || {
+    id: t.id, title: t.title, artist: t.artist,
+    dur: t.dur, plays: t.plays, genre: t.genre,
+    artwork_url: '', permalink_url: ''
+  });
+}
+
+function queueTrack(id, e) {
+  if (e) e.stopPropagation();
+  const t = TRACKS.find(x => x.id === id);
+  if (!t) return;
+  bridgeCall('POST', '/queue', t._raw || {
+    id: t.id, title: t.title, artist: t.artist,
+    dur: t.dur, plays: t.plays, genre: t.genre
+  });
+  const badge = document.getElementById('heroBadge');
+  if (badge) badge.textContent = 'QUEUED';
+}
+
+// ── Filter / sort ──────────────────────────────────────────────────
+function doFilter(q){
+  const trimmed = q.trim();
+  if (trimmed.length >= 2) {
+    // Live search against bridge
+    clearTimeout(window._searchTimer);
+    window._searchTimer = setTimeout(() => searchBridge(trimmed), 400);
+    return;
+  }
+  // Local filter on current TRACKS
+  shown = trimmed
+    ? TRACKS.filter(t =>
+        t.title.toLowerCase().includes(trimmed.toLowerCase()) ||
+        t.artist.toLowerCase().includes(trimmed.toLowerCase()) ||
+        t.genre.toLowerCase().includes(trimmed.toLowerCase()))
+    : [...TRACKS];
+  if(sortKey) applySort();
+  document.getElementById('favCt').textContent = shown.length + ' TRACKS';
+  render();
+}
+
+function applyFilter(){
+  shown = [...TRACKS];
+  if(sortKey) applySort();
+}
+
+function applySort(){
+  shown = [...shown].sort((a,b) => (b[sortKey] - a[sortKey]) * sortDir);
+}
+
+function sortBy(k){
+  if(sortKey===k){ sortDir*=-1; } else { sortKey=k; sortDir=-1; }
+  document.getElementById('sortPlays').className = 'ctrl-btn'+(k==='plays'?(sortDir<0?' desc':' asc'):'');
+  document.getElementById('sortLikes').className = 'ctrl-btn'+(k==='likes'?(sortDir<0?' desc':' asc'):'');
+  applyFilter();
+  render();
+}
+
+// ── Like toggle ────────────────────────────────────────────────────
+function toggleLike(id, e){
+  e&&e.stopPropagation();
+  const t = TRACKS.find(x => x.id === id);
+  if (!t) return;
+  t.liked = !t.liked;
+  bridgeCall('POST', '/like', { id: t.id, liked: t.liked });
+  render();
+  if (nowPlayingId) updateHero(nowPlayingId);
+}
+
+function loadMore(){ pageSize += 10; render(); }
+
+// ── Render track list ──────────────────────────────────────────────
+function render(){
+  const slice = shown.slice(0, pageSize);
+  document.getElementById('loadMoreWrap').style.display = shown.length > pageSize ? '' : 'none';
+  if (shown.length === 0) {
+    document.getElementById('tlist').innerHTML =
+      '<div style="padding:32px 14px;color:#333;font-size:9px;letter-spacing:.1em">' +
+      '>> SEARCH FOR TRACKS ABOVE — TYPE IN THE SEARCH BOX</div>';
+    return;
+  }
+  document.getElementById('tlist').innerHTML = slice.map((t,i) => {
+    const play = t.id === nowPlayingId;
+    const artImg = t.artwork_url
+      ? `<img class="tr-art-img" src="${t.artwork_url.replace('-large','-small')}" alt="" onload="this.classList.add('loaded')" onerror="this.style.display='none'"/>`
+      : '';
+    return `
+    <div class="tr-item${play?' playing':''}" onclick="setPlaying(${t.id})"
+         data-art="${t.artwork_url||''}"
+         onmouseenter="showThumb(event,this)" onmouseleave="hideThumb()" onmousemove="moveThumb(event)">
+      <div class="tr-n">${i+1}</div>
+      <div class="tr-play-ico">
+        <svg width="7" height="9" viewBox="0 0 7 9" fill="none"><polygon points="0,0 7,4.5 0,9" fill="#888"/></svg>
+      </div>
+      <div class="tr-art">
+        ${artImg}
+        ${GLYPHS_SM[t.g%GLYPHS_SM.length]}
+        <div class="tr-art-eq">
+          <div class="eqb" style="animation-delay:0s"></div>
+          <div class="eqb" style="animation-delay:.2s"></div>
+          <div class="eqb" style="animation-delay:.4s"></div>
+        </div>
+      </div>
+      <div class="tr-info">
+        <div class="tr-title">${t.title}</div>
+        <div class="tr-artist">${t.artist}</div>
+        <span class="tr-tag">${t.genre}</span>
+      </div>
+      <div class="tr-right">
+        <div class="tr-stat">${fmtPlays(t.plays)}</div>
+        <div class="tr-stat">${t.likes?fmtPlays(t.likes):'--'}</div>
+        <div class="tr-dur">${t.dur}</div>
+        <div class="tr-heart${t.liked?' on':''}" onclick="toggleLike(${t.id},event)">
+          <svg width="11" height="10" viewBox="0 0 11 10" fill="none">
+            <path d="M5.5 9 C5.5 9 1 6 1 3.5 C1 2.1 2.1 1 3.5 1 C4.3 1 5 1.4 5.5 2 C6 1.4 6.7 1 7.5 1 C8.9 1 10 2.1 10 3.5 C10 6 5.5 9 5.5 9Z"
+              stroke="#888" stroke-width="1" fill="${t.liked?'#888':'none'}"/>
+          </svg>
+        </div>
+      </div>
+      <div class="tr-prog"><div class="tr-prog-fill" style="width:${play?'44%':'0%'}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── Artwork thumbnail popup ────────────────────────────────────────
+let _thumbTimer  = null;
+let _thumbActive = false;
+const _popup    = () => document.getElementById('thumbPopup');
+const _popupImg = () => document.getElementById('thumbPopupImg');
+
+function _positionPopup(e) {
+  const pop = _popup();
+  const W = window.innerWidth, H = window.innerHeight;
+  const pw = 90, ph = 90, gap = 16;
+  let x = e.clientX + gap;
+  let y = e.clientY - ph / 2;
+  // flip left if too close to right edge
+  if (x + pw > W - 8) x = e.clientX - pw - gap;
+  // clamp vertically
+  if (y < 4) y = 4;
+  if (y + ph > H - 4) y = H - ph - 4;
+  pop.style.left = x + 'px';
+  pop.style.top  = y + 'px';
+}
+
+function showThumb(e, row) {
+  const url = row.dataset.art;
+  if (!url) return;
+  const img = _popupImg();
+  const pop = _popup();
+  const src = url.replace('-large','-t300x300');
+  if (img.getAttribute('data-src') !== src) {
+    img.setAttribute('data-src', src);
+    img.style.opacity = '0';
+    const tmp = new Image();
+    tmp.onload = () => {
+      img.src = src;
+      img.style.opacity = '1';
+    };
+    tmp.onerror = () => { _thumbActive = false; pop.classList.remove('visible'); };
+    tmp.src = src;
+  }
+  _positionPopup(e);
+  clearTimeout(_thumbTimer);
+  _thumbActive = true;
+  _thumbTimer = setTimeout(() => { if (_thumbActive) pop.classList.add('visible'); }, 40);
+}
+
+function moveThumb(e) {
+  if (!_thumbActive) return;
+  _positionPopup(e);
+}
+
+function hideThumb() {
+  _thumbActive = false;
+  clearTimeout(_thumbTimer);
+  _popup().classList.remove('visible');
+}
+
+// ── Poll state from bridge to sync playing indicator ───────────────
+async function pollState() {
+  if (!bridgeOk) return;
+  const state = await bridgeCall('GET', '/state');
+  if (state && state.nowPlaying != null && state.nowPlaying !== nowPlayingId) {
+    nowPlayingId = state.nowPlaying;
+    if (nowPlayingId) updateHero(nowPlayingId);
+    render();
+  }
+}
+
+// ── Clock ──────────────────────────────────────────────────────────
+function tickClock(){
+  const n=new Date();
+  const s=('0'+n.getHours()).slice(-2)+':'+('0'+n.getMinutes()).slice(-2)+':'+('0'+n.getSeconds()).slice(-2);
+  const el=document.getElementById('heroTime');
+  if(el) el.textContent=s;
+  setTimeout(tickClock,1000);
+}
+
+// ── glyph sets ──────────────────────────────────────────────────
+const GLYPHS_LG = [
+  `<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="11" stroke="#3a3a3a" stroke-width="1"/><line x1="5" y1="16" x2="11" y2="16" stroke="#2c2c2c" stroke-width="1"/><line x1="21" y1="16" x2="27" y2="16" stroke="#2c2c2c" stroke-width="1"/><line x1="16" y1="5" x2="16" y2="11" stroke="#2c2c2c" stroke-width="1"/><line x1="16" y1="21" x2="16" y2="27" stroke="#2c2c2c" stroke-width="1"/><circle cx="16" cy="16" r="2.5" fill="#333"/></svg>`,
+  `<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="12" stroke="#3a3a3a" stroke-width="1"/><circle cx="16" cy="16" r="7" stroke="#2c2c2c" stroke-width="1"/><circle cx="16" cy="16" r="2" fill="#3a3a3a"/><path d="M16 10 L16 16 L21 16" stroke="#444" stroke-width="1.2" stroke-linecap="square" fill="none"/></svg>`,
+  `<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M3 16 L7 10 L11 22 L15 8 L19 24 L23 12 L27 18 L29 16" stroke="#3a3a3a" stroke-width="1.2" fill="none" stroke-linecap="square"/></svg>`,
+  `<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><polygon points="16,5 28,25 4,25" stroke="#3a3a3a" stroke-width="1" fill="none"/><line x1="16" y1="12" x2="16" y2="19" stroke="#333" stroke-width="1"/><circle cx="16" cy="22" r="1.2" fill="#3a3a3a"/></svg>`,
+  `<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="12" stroke="#3a3a3a" stroke-width="1"/><path d="M16 9 L16 16 L22 16" stroke="#3a3a3a" stroke-width="1.2" stroke-linecap="square" fill="none"/><circle cx="16" cy="16" r="1.5" fill="#3a3a3a"/></svg>`,
+  `<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="11" stroke="#3a3a3a" stroke-width="1"/><line x1="11" y1="11" x2="21" y2="21" stroke="#333" stroke-width="1"/><line x1="21" y1="11" x2="11" y2="21" stroke="#333" stroke-width="1"/></svg>`,
+  `<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="11" stroke="#3a3a3a" stroke-width="1"/><path d="M10 16 L14 20 L22 12" stroke="#3a3a3a" stroke-width="1.2" fill="none" stroke-linecap="square"/></svg>`,
+  `<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="9" y="9" width="5" height="14" stroke="#3a3a3a" stroke-width="1" fill="none"/><rect x="18" y="9" width="5" height="14" stroke="#3a3a3a" stroke-width="1" fill="none"/></svg>`,
+];
+
+const GLYPHS_SM = [
+  `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#363636" stroke-width="1"/><line x1="2" y1="8" x2="5" y2="8" stroke="#2c2c2c" stroke-width="1"/><line x1="11" y1="8" x2="14" y2="8" stroke="#2c2c2c" stroke-width="1"/><line x1="8" y1="2" x2="8" y2="5" stroke="#2c2c2c" stroke-width="1"/><line x1="8" y1="11" x2="8" y2="14" stroke="#2c2c2c" stroke-width="1"/><circle cx="8" cy="8" r="1.5" fill="#333"/></svg>`,
+  `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#363636" stroke-width="1"/><circle cx="8" cy="8" r="3" stroke="#2c2c2c" stroke-width="1"/><circle cx="8" cy="8" r="1" fill="#363636"/></svg>`,
+  `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8 L4 5 L7 11 L10 3 L13 11 L14 8" stroke="#363636" stroke-width="1" fill="none" stroke-linecap="square"/></svg>`,
+  `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><polygon points="8,3 13,12 3,12" stroke="#363636" stroke-width="1" fill="none"/><line x1="8" y1="6" x2="8" y2="9" stroke="#2c2c2c" stroke-width="1"/></svg>`,
+  `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#363636" stroke-width="1"/><path d="M8 5 L8 8 L11 8" stroke="#363636" stroke-width="1.2" stroke-linecap="square" fill="none"/></svg>`,
+  `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="4" width="3" height="8" stroke="#363636" stroke-width="1" fill="none"/><rect x="10" y="4" width="3" height="8" stroke="#363636" stroke-width="1" fill="none"/></svg>`,
+  `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><line x1="3" y1="3" x2="13" y2="13" stroke="#363636" stroke-width="1"/><line x1="13" y1="3" x2="3" y2="13" stroke="#363636" stroke-width="1"/><circle cx="8" cy="8" r="4" stroke="#2c2c2c" stroke-width="1"/></svg>`,
+  `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#363636" stroke-width="1"/><path d="M5 8 L7 10 L11 6" stroke="#363636" stroke-width="1" fill="none" stroke-linecap="square"/></svg>`,
+];
+
+
+
+// ── Init ──────────────────────────────────────────────────────────
+buildHeroWave();
+render();   // show empty state prompt
+tickClock();
+
+document.getElementById('heroPlayBtn').onclick = () => {
+  if (nowPlayingId) setPlaying(nowPlayingId);
+  else if (TRACKS.length > 0) setPlaying(TRACKS[0].id);
+};
+
+document.querySelectorAll('.btn-sm')[0].onclick = () => {
+  if (nowPlayingId) queueTrack(nowPlayingId);
+};
+
+document.getElementById('heroHeart').onclick = () => {
+  if (!nowPlayingId) return;
+  const t = TRACKS.find(x => x.id === nowPlayingId);
+  if (t) {
+    t.liked = !t.liked;
+    bridgeCall('POST', '/like', { id: t.id, liked: t.liked });
+    updateHero(nowPlayingId);
+    render();
+  }
+};
+
+// Start bridge check, then poll every 3s
+checkBridge().then(() => {
+  if (bridgeOk) {
+    // Load initial trending/popular — search something neutral or just wait for user
+    // Show the empty prompt until user types
+  }
+});
+setInterval(() => { checkBridge().then(() => pollState()); }, 3000);
+</script>
+</body>
+</html>
