@@ -124,7 +124,45 @@ def _apply_dwm_fixes(root, app):
             pass
 
 
+def _is_headless() -> bool:
+    """Return True when no display server is available (e.g. Railway containers)."""
+    import os
+    # Explicit opt-in/opt-out via environment variable
+    headless_env = os.environ.get("OTERNOS_HEADLESS", "").strip().lower()
+    if headless_env in {"1", "true", "yes"}:
+        return True
+    if headless_env in {"0", "false", "no"}:
+        return False
+    # Railway and most CI/container environments set no DISPLAY / WAYLAND_DISPLAY
+    has_display = bool(
+        os.environ.get("DISPLAY", "").strip()
+        or os.environ.get("WAYLAND_DISPLAY", "").strip()
+    )
+    if not has_display:
+        return True
+    return False
+
+
+def _run_discord_bot_headless() -> None:
+    """Run the Discord bot directly, bypassing all Tkinter/GUI code."""
+    try:
+        if getattr(sys, "frozen", False):
+            from oternos.discord_bot import main as discord_main
+        else:
+            from .discord_bot import main as discord_main
+    except ImportError as exc:
+        raise SystemExit(
+            f"Could not import discord_bot: {exc}\n"
+            "Make sure discord.py is installed: pip install discord.py"
+        ) from exc
+    raise SystemExit(discord_main())
+
+
 def main():
+    if _is_headless():
+        _run_discord_bot_headless()
+        return
+
     root = tk.Tk()
     root.withdraw()
     root.overrideredirect(True)
