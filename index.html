@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OTERNOS</title>
+  <meta name="description" content="OTERNOS Windows friend build download page.">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #020202;
+      --panel: #0b0b0b;
+      --line: #303030;
+      --text: #f4f4f4;
+      --muted: #a8a8a8;
+      --soft: #686868;
+      --accent: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .shell {
+      width: min(1080px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .mark {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--accent);
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-family: "Consolas", monospace;
+    }
+
+    .tag {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(300px, 0.92fr);
+      gap: 28px;
+      align-items: center;
+      padding: 52px 0 34px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(44px, 8vw, 92px);
+      line-height: 0.9;
+      letter-spacing: 0;
+    }
+
+    .copy {
+      margin: 22px 0 0;
+      max-width: 620px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.6;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    a.button {
+      min-height: 46px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 18px;
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      color: var(--bg);
+      background: var(--accent);
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    a.button.secondary {
+      color: var(--text);
+      background: transparent;
+    }
+
+    .preview {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      min-height: 340px;
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .preview::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(to bottom, rgba(255,255,255,0.08), rgba(255,255,255,0.08) 1px, transparent 1px, transparent 9px);
+      opacity: 0.28;
+      pointer-events: none;
+    }
+
+    .window-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font: 12px "Consolas", monospace;
+    }
+
+    .viz {
+      display: grid;
+      grid-template-columns: repeat(16, 1fr);
+      gap: 6px;
+      align-items: end;
+      height: 172px;
+      margin-top: 30px;
+    }
+
+    .bar {
+      min-height: 16px;
+      border: 1px solid #f0f0f0;
+      background: #f0f0f0;
+      opacity: 0.88;
+    }
+
+    .bar:nth-child(1) { height: 32px; }
+    .bar:nth-child(2) { height: 82px; }
+    .bar:nth-child(3) { height: 48px; }
+    .bar:nth-child(4) { height: 126px; }
+    .bar:nth-child(5) { height: 94px; }
+    .bar:nth-child(6) { height: 150px; }
+    .bar:nth-child(7) { height: 66px; }
+    .bar:nth-child(8) { height: 112px; }
+    .bar:nth-child(9) { height: 44px; }
+    .bar:nth-child(10) { height: 136px; }
+    .bar:nth-child(11) { height: 74px; }
+    .bar:nth-child(12) { height: 158px; }
+    .bar:nth-child(13) { height: 58px; }
+    .bar:nth-child(14) { height: 104px; }
+    .bar:nth-child(15) { height: 40px; }
+    .bar:nth-child(16) { height: 88px; }
+
+    .trackline {
+      display: grid;
+      gap: 10px;
+      margin-top: 28px;
+      font-family: "Consolas", monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .trackline span {
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+    }
+
+    section {
+      border-top: 1px solid var(--line);
+      padding: 26px 0;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 16px;
+      min-height: 120px;
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    footer {
+      color: var(--soft);
+      font-size: 13px;
+      padding: 22px 0 8px;
+      border-top: 1px solid var(--line);
+    }
+
+    @media (max-width: 820px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .tag {
+        text-align: left;
+      }
+
+      .steps {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <div class="mark">OT</div>
+        <span>OTERNOS</span>
+      </div>
+      <div class="tag">Friends-Release-v1 // Windows portable zip</div>
+    </header>
+
+    <main>
+      <div>
+        <h1>OTERNOS</h1>
+        <p class="copy">
+          A personal desktop music player with a black-and-white command deck,
+          local playback, visualizers, queue controls, and source experiments.
+        </p>
+        <div class="actions">
+          <a class="button" href="https://github.com/Yukimon37/oternos-player-/releases/latest">Download Friend Build</a>
+          <a class="button secondary" href="https://github.com/Yukimon37/oternos-player-/releases">All Releases</a>
+        </div>
+      </div>
+
+      <div class="preview" aria-label="OTERNOS app preview">
+        <div class="window-bar">
+          <span>VOID SIGNAL</span>
+          <span>LIVE</span>
+        </div>
+        <div class="viz">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+        <div class="trackline">
+          <span><b>NOW</b><em>local / sources</em></span>
+          <span><b>QUEUE</b><em>portable build</em></span>
+          <span><b>VISUALIZER</b><em>monochrome signal</em></span>
+        </div>
+      </div>
+    </main>
+
+    <section>
+      <div class="steps">
+        <div class="step">
+          <strong>1. Download</strong>
+          <p>Use the release asset named <b>OTERNOS-...-win64-portable.zip</b>, not GitHub's automatic Source code zip.</p>
+        </div>
+        <div class="step">
+          <strong>2. Extract</strong>
+          <p>Extract the zip first. Running the exe from inside the compressed zip can break bundled Python DLL loading.</p>
+        </div>
+        <div class="step">
+          <strong>3. Launch</strong>
+          <p>Open the extracted folder and double-click <b>START_OTERNOS.bat</b> or <b>oternos_qt.exe</b>.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Windows may show a SmartScreen warning because early friend builds are not code-signed yet.
+    </footer>
+  </div>
+</body>
+</html>
