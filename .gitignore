@@ -1,8 +1,34 @@
-ffmpeg.exe 
-ffprobe.exe 
-RobloxTranslator.exe 
-void_player.exe 
-*.exe 
-"build/" 
-"build/" 
-"build/" 
+# Build outputs
+build/
+dist/
+dist_stage/
+releases/
+*.spec.bak
+
+# Runtime logs and temporary/generated work
+logs/
+tmp/
+*.log
+.ruff_cache/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local secrets and environment files
+.env
+.env.*
+discord_bot_token.txt
+
+# Local binary drops and one-off launch artifacts
+ffmpeg.exe
+ffprobe.exe
+RobloxTranslator.exe
+void_player.exe
+oternos_qt.exe
+*.exe
+py
+
+# Local backup copies
+oternos_backup_*/
