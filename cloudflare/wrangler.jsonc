@@ -1,6 +1,0 @@
-{
-  "$schema": "https://unpkg.com/wrangler@latest/config-schema.json",
-  "name": "oternos-friends",
-  "main": "worker.js",
-  "compatibility_date": "2026-08-13"
-}

@@ -12,7 +12,7 @@ is a free online service for OTERNOS Friends, separate from the Discord bot.
 The deployment files live on the `friends-service` branch:
 
 - `cloudflare/worker.js`
-- `cloudflare/wrangler.jsonc`
+- `wrangler.jsonc`
 
 ## Cloudflare Deployment
 
@@ -20,8 +20,8 @@ The deployment files live on the `friends-service` branch:
 2. Go to **Workers & Pages** and choose **Create application**.
 3. Choose **Import a repository**, connect GitHub, then select
    `Yukimon37/oternos-player-` and the `friends-service` branch.
-4. Set the project **Root Directory** to `cloudflare`, name the Worker
-   `oternos-friends`, then deploy it.
+4. Leave the project **Root Directory** empty. The Worker name needs to match
+   the one Cloudflare created for the project, then deploy it.
 5. Open **D1 SQL Database**, create a database named `oternos-friends`, then
    open the Worker **Bindings** tab. Add that database with the binding name
    `DB`.
