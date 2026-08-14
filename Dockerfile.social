@@ -1,0 +1,16 @@
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY requirements-social.txt ./
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir -r requirements-social.txt
+
+# Keep the hosted service independent from the desktop application. Railway
+# only needs this small API module and its dependencies.
+COPY oternos/social_service.py ./social_service.py
+
+EXPOSE 8080
+CMD ["sh", "-c", "uvicorn social_service:app --host 0.0.0.0 --port ${PORT:-8080}"]
