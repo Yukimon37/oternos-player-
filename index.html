@@ -227,10 +227,30 @@
     }
 
     footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
       color: var(--soft);
       font-size: 13px;
       padding: 22px 0 8px;
       border-top: 1px solid var(--line);
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .footer-links a {
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .footer-links a:hover,
+    .footer-links a:focus-visible {
+      text-decoration: underline;
     }
 
     @media (max-width: 820px) {
@@ -249,6 +269,12 @@
 
       .steps {
         grid-template-columns: 1fr;
+      }
+
+      footer {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
       }
     }
   </style>
@@ -313,7 +339,11 @@
     </section>
 
     <footer>
-      Windows may show a SmartScreen warning because early friend builds are not code-signed yet.
+      <span>Windows may show a SmartScreen warning because early friend builds are not code-signed yet.</span>
+      <span class="footer-links">
+        <a href="./terms.html">Terms of Service</a>
+        <a href="./privacy.html">Privacy Policy</a>
+      </span>
     </footer>
   </div>
 </body>
